@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - BLACK CORAL{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <h2>User Profile</h2>
+    
+    <div class="profile-info" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+        <h3>Account Information</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div>
+                <strong>Username:</strong> {{ user.username }}
+            </div>
+            <div>
+                <strong>Email:</strong> {{ user.email }}
+            </div>
+            <div>
+                <strong>Role:</strong> {{ user.get_role_display }}
+            </div>
+            <div>
+                <strong>Department:</strong> {{ user.department|default:"Not specified" }}
+            </div>
+            <div>
+                <strong>Member since:</strong> {{ user.date_joined|date:"M d, Y" }}
+            </div>
+            <div>
+                <strong>Last login:</strong> {{ user.last_login|date:"M d, Y H:i" }}
+            </div>
+        </div>
+    </div>
+
+    {% if recent_sessions %}
+    <div class="recent-sessions" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3>Recent Login Sessions</h3>
+        <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb;">
+                    <th style="text-align: left; padding: 0.5rem;">Login Time</th>
+                    <th style="text-align: left; padding: 0.5rem;">IP Address</th>
+                    <th style="text-align: left; padding: 0.5rem;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in recent_sessions %}
+                <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 0.5rem;">{{ session.login_time|date:"M d, Y H:i" }}</td>
+                    <td style="padding: 0.5rem;">{{ session.ip_address }}</td>
+                    <td style="padding: 0.5rem;">
+                        {% if session.logout_time %}
+                            <span style="color: #6b7280;">Ended</span>
+                        {% else %}
+                            <span style="color: #059669;">Active</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 2rem;">
+        <a href="{% url 'core:dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

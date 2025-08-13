@@ -1,0 +1,87 @@
+# Agent OS Configuration for BLACK CORAL
+version: "1.0"
+project: "BLACK CORAL"
+
+# Agent Definitions
+agents:
+  research_agent:
+    name: "Research Agent"
+    description: "Monitors government contracting opportunities"
+    capabilities:
+      - "api_integration"
+      - "document_parsing"
+      - "opportunity_filtering"
+    tools:
+      - "sam_gov_api"
+      - "usaspending_api"
+      - "gao_api"
+      - "document_parser"
+    
+  analysis_agent:
+    name: "Analysis Agent"
+    description: "AI-powered opportunity analysis and summarization"
+    capabilities:
+      - "ai_summarization"
+      - "requirement_matching"
+      - "scoring_algorithms"
+    tools:
+      - "claude_code_integration"
+      - "gemini_integration"
+      - "past_performance_matcher"
+    
+  compliance_agent:
+    name: "Compliance Agent"
+    description: "Real-time compliance monitoring and validation"
+    capabilities:
+      - "far_compliance_checking"
+      - "regulatory_monitoring"
+      - "risk_assessment"
+    tools:
+      - "compliance_rules_engine"
+      - "regulatory_database"
+      - "alert_system"
+    
+  qa_agent:
+    name: "Quality Assurance Agent"
+    description: "Content quality and consistency validation"
+    capabilities:
+      - "grammar_checking"
+      - "style_validation"
+      - "consistency_analysis"
+    tools:
+      - "nlp_quality_checker"
+      - "style_guide_validator"
+      - "document_formatter"
+    
+  submission_agent:
+    name: "Submission Agent"
+    description: "Proposal assembly and submission coordination"
+    capabilities:
+      - "document_assembly"
+      - "submission_management"
+      - "deadline_tracking"
+    tools:
+      - "document_assembler"
+      - "submission_portal_api"
+      - "calendar_integration"
+
+# Communication Channels
+communication:
+  message_bus: "redis"
+  event_store: "postgresql"
+  coordination_protocol: "django_signals"
+
+# Integration Points
+integrations:
+  django:
+    models_path: "apps.core.models"
+    signals_path: "apps.core.signals"
+    tasks_path: "apps.core.tasks"
+  
+  celery:
+    broker: "redis://localhost:6379/0"
+    backend: "redis://localhost:6379/0"
+  
+  htmx:
+    endpoints_path: "apps.core.htmx_views"
+    update_channels: ["agent_status", "task_progress", "notifications"]

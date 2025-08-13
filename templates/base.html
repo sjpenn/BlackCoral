@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BLACK CORAL{% endblock %}</title>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
+    <!-- Basic Styling -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .header { background: #1e40af; color: white; padding: 1rem 0; }
+        .nav { display: flex; justify-content: space-between; align-items: center; }
+        .nav-links a { color: white; text-decoration: none; margin-left: 1rem; }
+        .main { padding: 2rem 0; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .alert { padding: 1rem; margin: 1rem 0; border-radius: 4px; }
+        .alert-success { background: #d1fae5; color: #047857; }
+        .alert-error { background: #fecaca; color: #dc2626; }
+        .landing-main { padding: 0; margin: 0; }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if request.resolver_match.url_name != 'landing' %}
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div>
+                    <a href="{% if user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" style="color: white; text-decoration: none;">
+                        <h1 style="margin: 0;">BLACK CORAL</h1>
+                    </a>
+                    <span style="font-size: 0.8em; opacity: 0.8;">Government Contracting Workflow System</span>
+                </div>
+                {% if user.is_authenticated %}
+                <div>
+                    <span>{{ user.first_name|default:user.username }} ({{ user.get_role_display }})</span>
+                    <a href="{% url 'authentication:profile' %}">Profile</a>
+                    <a href="{% url 'authentication:logout' %}">Logout</a>
+                </div>
+                {% else %}
+                <div>
+                    <a href="{% url 'authentication:login' %}">Login</a>
+                </div>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="{% if request.resolver_match.url_name == 'landing' %}landing-main{% else %}main{% endif %}">
+        {% if request.resolver_match.url_name != 'landing' %}
+        <div class="container">
+        {% endif %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        {% if request.resolver_match.url_name != 'landing' %}
+        </div>
+        {% endif %}
+    </main>
+
+    {% if request.resolver_match.url_name != 'landing' %}
+    <footer style="background: #f3f4f6; padding: 1rem 0; margin-top: 2rem; text-align: center; color: #6b7280;">
+        <div class="container">
+            <p>&copy; 2024 BLACK CORAL - Internal Government Contracting System</p>
+        </div>
+    </footer>
+    {% endif %}
+</body>
+</html>

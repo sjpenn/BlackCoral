@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Compliance Monitoring - BLACK CORAL{% endblock %}
+
+{% block content %}
+<div class="compliance-container">
+    <h2>Compliance Monitoring Dashboard</h2>
+    
+    <div class="coming-soon" style="background: white; padding: 3rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+        <h3>Feature Coming Soon</h3>
+        <p>Compliance monitoring will be implemented in Phase 3 of development.</p>
+        <p>This will include:</p>
+        <ul style="text-align: left; max-width: 400px; margin: 1rem auto;">
+            <li>Real-time FAR compliance checking</li>
+            <li>Agency-specific rule monitoring</li>
+            <li>Automated compliance alerts</li>
+            <li>Regulatory change notifications</li>
+            <li>Compliance matrix management</li>
+        </ul>
+        <a href="{% url 'core:dashboard' %}" class="btn btn-primary" style="margin-top: 1rem;">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

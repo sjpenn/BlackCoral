@@ -1,0 +1,133 @@
+---
+description: Apply these rules when creating the project
+globs:
+alwaysApply: true
+---
+## Project Overview
+
+*   **Type:** MVP for internal prototyping, aimed to become production ready
+*   **Description:** Streamline and accelerate the government contracting workflow including opportunity retrieval, evaluation, matching, AI summarization, and compliance.
+*   **Primary Goal:** Streamline government contracting workflow for go/no-go decisions and proposal generation.
+
+## Project Structure
+
+### Framework-Specific Routing
+
+*   **Directory Rules:**
+
+    *   Django 5.2: `project/urls.py` routes to app-level URLs; `app/urls.py` defines individual paths.
+    *   Example 1: project/urls.py → `path('admin/', admin.site.urls)`, `path('', include('app.urls'))`
+    *   Example 2: app/urls.py → `path('opportunities/filter/', views.filter_opportunities, name='filter')`
+    *   Example 3: app/urls.py → `path('opportunities/<int:pk>/evaluate/', views.evaluate_opportunity, name='evaluate')`
+
+### Core Directories
+
+*   **Versioned Structure:**
+
+    *   project: Django 5.2 project root with `settings.py`, `urls.py`
+    *   app: Django app containing `models.py`, `views.py`, `urls.py`, `templates/`, `static/`
+    *   templates: HTMX-driven HTML templates with Alpine.js interactivity
+    *   static: CSS, JS (Tailwind optional), images
+    *   docs: Project documentation and API specifications
+    *   migrations: Auto-generated Django migrations
+
+### Key Files
+
+*   **Stack-Versioned Patterns:**
+
+    *   `manage.py`: Django 5.2 management entry point
+    *   `project/settings.py`: Django settings (including RBAC configuration)
+    *   `project/urls.py`: Root URL configuration
+    *   `app/models.py`: Django ORM models with optimistic locking (`select_for_update()`)
+    *   `app/views.py`: HTMX-compatible views for dynamic content
+    *   `app/urls.py`: App-level routing definitions
+    *   `templates/*.html`: HTMX + Alpine.js templates (e.g., `filter.html`, `evaluate.html`)
+
+## Tech Stack Rules
+
+*   **Version Enforcement:**
+
+    *   python@3: Use Python 3 best practices (type hints, f-strings)
+    *   django@5.2: Use Django 5.2 conventions, `path()` routing, no deprecated patterns
+    *   postgresql@latest: Use `psycopg2-binary` for database connectivity
+    *   htmx@1: Include `hx-*` attributes in templates for dynamic partial updates
+    *   alpine.js@3: Use Alpine.js for lightweight interactivity in templates
+    *   tailwindcss@latest (optional): Utility-first CSS if required
+
+## PRD Compliance
+
+*   **Non-Negotiable:**
+
+    *   "Handle API rate limits by caching results and implementing exponential backoff.": Must implement a caching layer (e.g., Redis) and exponential backoff strategy for all external API calls.
+    *   "Mitigate concurrency conflicts with optimistic locking in Django.": All critical DB updates must use `select_for_update()` or versioned fields.
+    *   "Implement a role-based access control (RBAC) system.": Define permissions and group-based access control using Django Auth.
+
+## App Flow Integration
+
+*   **Stack-Aligned Flow:**
+
+    *   Opportunity Filtering → `app/views.filter_opportunities` → `templates/filter.html` (HTMX triggers for real-time updates)
+    *   Detailed Evaluation → `app/views.evaluate_opportunity` → `templates/evaluate.html` (SOW/PWS display, AI summaries, rating widgets)
+    *   AI Summary Generation → `app/views.generate_summary` (POST) → HTMX swap of summary pane
+    *   Final Submission → `app/views.submit_proposal` → `templates/submit.html` (compliance & QA alerts)
+
+## Best Practices
+
+*   Python 3
+    *   Use type hints and Pydantic for data validation
+    *   Follow PEP8 and use Black for formatting
+    *   Write unit tests with pytest
+
+*   Django 5.2
+    *   Use `path()` instead of `url()` for routing
+    *   Leverage class-based views and mixins for reusable logic
+    *   Manage settings via environment variables (django-environ)
+
+*   PostgreSQL
+    *   Use transactions and `select_for_update()` for concurrency control
+    *   Create indexes for frequently queried fields (e.g., NAICS code)
+    *   Use connection pooling where appropriate
+
+*   HTMX
+    *   Return partial templates for htmx requests
+    *   Use `hx-trigger` and `hx-target` for granular updates
+    *   Handle htmx errors via appropriate HTTP status codes
+
+*   Alpine.js
+    *   Scope state with `x-data` at component level
+    *   Use `x-show` and `x-bind` for reactive UI
+    *   Keep logic minimal; delegate complex logic to backend
+
+*   Tailwind CSS
+    *   Use utility classes consistently
+    *   Purge unused styles in production builds
+    *   Customize via `tailwind.config.js`
+
+## Rules
+
+*   Derive folder/file patterns directly from `techStackDoc` versions.
+*   If using Django 5.2: Enforce `project/` directory with `settings.py` and `urls.py`.
+*   Mirror routing logic via `app/urls.py` and view hierarchies.
+*   Never mix version patterns (e.g., no Flask or legacy Django patterns).
+
+## Rules Metrics
+
+Before starting the project development, create a metrics file in the root of the project called
+
+`cursor_metrics.md`.
+
+### Instructions:
+
+*   Each time a cursor rule is used as context, update `cursor_metrics.md`.
+*   Use the following format for `cursor_metrics.md`:
+
+    # Rules Metrics
+
+    ## Usage
+
+    The number of times rules is used as context
+
+    *   django-routing.mdc: 0
+    *   htmx-usage.mdc: 0
+    *   alpinejs-usage.mdc: 0
+    *   db-concurrency.mdc: 0

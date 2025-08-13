@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Documents - BLACK CORAL{% endblock %}
+
+{% block content %}
+<div class="documents-container">
+    <h2>Document Processing</h2>
+    
+    <div class="coming-soon" style="background: white; padding: 3rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+        <h3>Feature Coming Soon</h3>
+        <p>Document processing capabilities will be implemented in Phase 2 of development.</p>
+        <p>This will include:</p>
+        <ul style="text-align: left; max-width: 400px; margin: 1rem auto;">
+            <li>PDF, Word, ZIP, HTML, XLS parsing</li>
+            <li>OCR for scanned documents</li>
+            <li>Automatic SOW/PWS extraction</li>
+            <li>Document metadata tagging</li>
+            <li>Full-text search capabilities</li>
+        </ul>
+        <a href="{% url 'core:dashboard' %}" class="btn btn-primary" style="margin-top: 1rem;">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

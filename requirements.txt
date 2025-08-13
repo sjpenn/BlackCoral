@@ -1,0 +1,38 @@
+# Core Django and Database
+Django==5.2.*
+psycopg2-binary==2.9.*
+django-environ==0.11.*
+
+# Frontend Enhancement
+django-htmx==1.17.*
+
+# API and External Integrations
+requests==2.31.*
+celery==5.3.*
+redis==5.0.*
+
+# Document Processing
+PyMuPDF==1.23.*
+python-docx==1.1.*
+pytesseract==0.3.*
+Pillow==10.1.*
+
+# AI Integration
+anthropic==0.7.*
+google-generativeai==0.3.*
+
+# Development and Testing
+pytest==7.4.*
+pytest-django==4.7.*
+black==23.9.*
+flake8==6.1.*
+coverage==7.3.*
+
+# Production
+gunicorn==21.2.*
+whitenoise==6.6.*
+django-cors-headers==4.3.*
+
+# Security
+django-csp==3.8.*
+django-ratelimit==4.1.*
