@@ -1,0 +1,39 @@
+{% for notification in notifications %}
+    {% include 'notifications/partials/notification_item.html' with notification=notification %}
+{% empty %}
+    <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5-5-5h5v-12"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No notifications</h3>
+        <p class="mt-1 text-sm text-gray-500">You're all caught up! No new notifications to display.</p>
+    </div>
+{% endfor %}
+
+{% if notifications.has_other_pages %}
+    <div class="flex justify-center mt-6">
+        <nav class="flex items-center space-x-1">
+            {% if notifications.has_previous %}
+                <button hx-get="{% url 'notifications:list_htmx' %}?page={{ notifications.previous_page_number }}"
+                        hx-target="#notification-list"
+                        hx-include="[name='type'], [name='unread-only']"
+                        class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                    Previous
+                </button>
+            {% endif %}
+            
+            <span class="px-3 py-2 text-sm text-gray-700">
+                Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}
+            </span>
+            
+            {% if notifications.has_next %}
+                <button hx-get="{% url 'notifications:list_htmx' %}?page={{ notifications.next_page_number }}"
+                        hx-target="#notification-list"
+                        hx-include="[name='type'], [name='unread-only']"
+                        class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                    Next
+                </button>
+            {% endif %}
+        </nav>
+    </div>
+{% endif %}

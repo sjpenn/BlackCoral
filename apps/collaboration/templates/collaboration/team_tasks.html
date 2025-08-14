@@ -1,0 +1,592 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tasks - {{ team.name }} - BLACK CORAL{% endblock %}
+
+{% block extra_css %}
+<style>
+.task-item {
+    transition: all 0.3s ease;
+    border-left: 4px solid #e5e7eb;
+}
+
+.task-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.task-item.priority-urgent {
+    border-left-color: #dc2626;
+}
+
+.task-item.priority-high {
+    border-left-color: #ea580c;
+}
+
+.task-item.priority-medium {
+    border-left-color: #d97706;
+}
+
+.task-item.priority-low {
+    border-left-color: #059669;
+}
+
+.task-item.completed {
+    opacity: 0.7;
+    border-left-color: #10b981;
+}
+
+.task-item.overdue {
+    background-color: #fef2f2;
+    border-left-color: #dc2626;
+}
+
+.filter-tab {
+    transition: all 0.3s ease;
+}
+
+.filter-tab.active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.create-task-form {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.create-task-form.open {
+    max-height: 600px;
+}
+
+.drag-handle {
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.kanban-column {
+    min-height: 400px;
+    transition: background-color 0.3s ease;
+}
+
+.kanban-column.drag-over {
+    background-color: #f3f4f6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <nav class="text-sm breadcrumbs mb-2">
+                <a href="{% url 'collaboration:team_list' %}" class="text-blue-600 hover:text-blue-800">Teams</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <a href="{% url 'collaboration:team_detail' team.id %}" class="text-blue-600 hover:text-blue-800">{{ team.name }}</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <span class="text-gray-700">Tasks</span>
+            </nav>
+            <h1 class="text-2xl font-bold text-gray-900">Task Management</h1>
+            <p class="text-gray-600">Organize and track proposal development tasks</p>
+        </div>
+        
+        <div class="flex items-center space-x-3">
+            <!-- View toggle -->
+            <div class="flex bg-gray-100 rounded-lg p-1">
+                <button id="list-view-btn" class="px-3 py-1 text-sm rounded-md bg-white shadow-sm text-gray-700 font-medium">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    </svg>
+                    List
+                </button>
+                <button id="kanban-view-btn" class="px-3 py-1 text-sm rounded-md text-gray-700">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                    </svg>
+                    Board
+                </button>
+            </div>
+            
+            <!-- Create task button -->
+            <button id="create-task-btn" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Create Task
+            </button>
+        </div>
+    </div>
+    
+    <!-- Create Task Form -->
+    <div id="create-task-form" class="create-task-form bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Create New Task</h3>
+        
+        <form hx-post="{% url 'collaboration:create_task' team.id %}" 
+              hx-target="#task-list" 
+              hx-swap="afterbegin"
+              hx-on::after-request="this.reset(); document.getElementById('create-task-form').classList.remove('open')">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Title -->
+                <div class="md:col-span-2">
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Task Title</label>
+                    <input type="text" id="title" name="title" required
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Enter task title...">
+                </div>
+                
+                <!-- Type and Priority -->
+                <div>
+                    <label for="task_type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select id="task_type" name="task_type" 
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        {% for value, label in team.tasks.model.TASK_TYPE_CHOICES %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                    <select id="priority" name="priority" 
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        {% for value, label in priority_choices %}
+                            <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Assignment and Section -->
+                <div>
+                    <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
+                    <select id="assigned_to" name="assigned_to" 
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Unassigned</option>
+                        {% for member in team_members %}
+                            <option value="{{ member.id }}">{{ member.get_full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="section" class="block text-sm font-medium text-gray-700 mb-1">Section</label>
+                    <select id="section" name="section" 
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">No specific section</option>
+                        {% for section in team.sections.all %}
+                            <option value="{{ section.id }}">{{ section.section_number }} - {{ section.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Due date and estimated hours -->
+                <div>
+                    <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                    <input type="date" id="due_date" name="due_date"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="estimated_hours" class="block text-sm font-medium text-gray-700 mb-1">Estimated Hours</label>
+                    <input type="number" id="estimated_hours" name="estimated_hours" step="0.5" min="0"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="0">
+                </div>
+                
+                <!-- Description -->
+                <div class="md:col-span-2">
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea id="description" name="description" rows="3"
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Task description and requirements..."></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" id="cancel-create-btn"
+                        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Create Task
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+            <!-- Status filter tabs -->
+            <div class="flex bg-gray-100 rounded-lg p-1">
+                <button class="filter-tab px-3 py-1 text-sm rounded-md active" data-filter="all">
+                    All Tasks
+                </button>
+                <button class="filter-tab px-3 py-1 text-sm rounded-md" data-filter="todo">
+                    To Do
+                </button>
+                <button class="filter-tab px-3 py-1 text-sm rounded-md" data-filter="in_progress">
+                    In Progress
+                </button>
+                <button class="filter-tab px-3 py-1 text-sm rounded-md" data-filter="completed">
+                    Completed
+                </button>
+            </div>
+            
+            <!-- Additional filters -->
+            <select id="assigned-filter" class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                <option value="">All Members</option>
+                {% for member in team_members %}
+                    <option value="{{ member.id }}" {% if current_filters.assigned == member.id|stringformat:"s" %}selected{% endif %}>
+                        {{ member.get_full_name }}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            <select id="priority-filter" class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                <option value="">All Priorities</option>
+                {% for value, label in priority_choices %}
+                    <option value="{{ value }}" {% if current_filters.priority == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            
+            <!-- Search -->
+            <div class="flex-1 max-w-md">
+                <input type="text" id="task-search" placeholder="Search tasks..."
+                       class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+        </div>
+    </div>
+    
+    <!-- List View -->
+    <div id="list-view" class="space-y-4">
+        <div id="task-list">
+            {% for task in tasks %}
+                {% include 'collaboration/partials/task_item.html' with task=task team=team %}
+            {% empty %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No tasks yet</h3>
+                    <p class="mt-1 text-sm text-gray-500">Get started by creating your first task.</p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if tasks.has_other_pages %}
+            <div class="flex justify-center mt-6">
+                <nav class="flex items-center space-x-1">
+                    {% if tasks.has_previous %}
+                        <a href="?page={{ tasks.previous_page_number }}" 
+                           class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                            Previous
+                        </a>
+                    {% endif %}
+                    
+                    <span class="px-3 py-2 text-sm text-gray-700">
+                        Page {{ tasks.number }} of {{ tasks.paginator.num_pages }}
+                    </span>
+                    
+                    {% if tasks.has_next %}
+                        <a href="?page={{ tasks.next_page_number }}" 
+                           class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                            Next
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Kanban View (hidden by default) -->
+    <div id="kanban-view" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <!-- To Do Column -->
+            <div class="kanban-column bg-gray-50 rounded-lg p-4" data-status="todo">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="w-3 h-3 bg-gray-400 rounded-full mr-2"></span>
+                    To Do
+                    <span class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                        {{ tasks|length }}
+                    </span>
+                </h3>
+                <div class="space-y-3" id="todo-tasks">
+                    <!-- Tasks will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- In Progress Column -->
+            <div class="kanban-column bg-blue-50 rounded-lg p-4" data-status="in_progress">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                    In Progress
+                    <span class="ml-auto text-xs bg-blue-200 text-blue-700 px-2 py-1 rounded-full">0</span>
+                </h3>
+                <div class="space-y-3" id="in_progress-tasks">
+                    <!-- Tasks will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Review Column -->
+            <div class="kanban-column bg-yellow-50 rounded-lg p-4" data-status="waiting">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>
+                    Waiting/Review
+                    <span class="ml-auto text-xs bg-yellow-200 text-yellow-700 px-2 py-1 rounded-full">0</span>
+                </h3>
+                <div class="space-y-3" id="waiting-tasks">
+                    <!-- Tasks will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Completed Column -->
+            <div class="kanban-column bg-green-50 rounded-lg p-4" data-status="completed">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
+                    Completed
+                    <span class="ml-auto text-xs bg-green-200 text-green-700 px-2 py-1 rounded-full">0</span>
+                </h3>
+                <div class="space-y-3" id="completed-tasks">
+                    <!-- Tasks will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Create task form toggle
+document.getElementById('create-task-btn').addEventListener('click', function() {
+    const form = document.getElementById('create-task-form');
+    form.classList.add('open');
+    document.getElementById('title').focus();
+});
+
+document.getElementById('cancel-create-btn').addEventListener('click', function() {
+    const form = document.getElementById('create-task-form');
+    form.classList.remove('open');
+    form.querySelector('form').reset();
+});
+
+// View toggle
+document.getElementById('list-view-btn').addEventListener('click', function() {
+    document.getElementById('list-view').classList.remove('hidden');
+    document.getElementById('kanban-view').classList.add('hidden');
+    this.classList.add('bg-white', 'shadow-sm');
+    document.getElementById('kanban-view-btn').classList.remove('bg-white', 'shadow-sm');
+});
+
+document.getElementById('kanban-view-btn').addEventListener('click', function() {
+    document.getElementById('list-view').classList.add('hidden');
+    document.getElementById('kanban-view').classList.remove('hidden');
+    this.classList.add('bg-white', 'shadow-sm');
+    document.getElementById('list-view-btn').classList.remove('bg-white', 'shadow-sm');
+    populateKanbanBoard();
+});
+
+// Filter functionality
+document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        // Update active tab
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Filter tasks
+        const filter = this.dataset.filter;
+        filterTasks(filter);
+    });
+});
+
+// Search functionality
+document.getElementById('task-search').addEventListener('input', function() {
+    const query = this.value.toLowerCase();
+    const tasks = document.querySelectorAll('.task-item');
+    
+    tasks.forEach(task => {
+        const title = task.querySelector('.task-title').textContent.toLowerCase();
+        const description = task.querySelector('.task-description')?.textContent.toLowerCase() || '';
+        
+        if (title.includes(query) || description.includes(query)) {
+            task.style.display = 'block';
+        } else {
+            task.style.display = 'none';
+        }
+    });
+});
+
+// Additional filters
+document.getElementById('assigned-filter').addEventListener('change', function() {
+    // Implement assigned filter logic
+    filterTasksByAssignment(this.value);
+});
+
+document.getElementById('priority-filter').addEventListener('change', function() {
+    // Implement priority filter logic
+    filterTasksByPriority(this.value);
+});
+
+function filterTasks(status) {
+    const tasks = document.querySelectorAll('.task-item');
+    
+    tasks.forEach(task => {
+        if (status === 'all') {
+            task.style.display = 'block';
+        } else {
+            const taskStatus = task.dataset.status;
+            task.style.display = taskStatus === status ? 'block' : 'none';
+        }
+    });
+}
+
+function filterTasksByAssignment(userId) {
+    const tasks = document.querySelectorAll('.task-item');
+    
+    tasks.forEach(task => {
+        if (!userId) {
+            task.style.display = 'block';
+        } else {
+            const assignedTo = task.dataset.assignedTo;
+            task.style.display = assignedTo === userId ? 'block' : 'none';
+        }
+    });
+}
+
+function filterTasksByPriority(priority) {
+    const tasks = document.querySelectorAll('.task-item');
+    
+    tasks.forEach(task => {
+        if (!priority) {
+            task.style.display = 'block';
+        } else {
+            const taskPriority = task.dataset.priority;
+            task.style.display = taskPriority === priority ? 'block' : 'none';
+        }
+    });
+}
+
+function populateKanbanBoard() {
+    // Clear existing kanban tasks
+    ['todo', 'in_progress', 'waiting', 'completed'].forEach(status => {
+        document.getElementById(`${status}-tasks`).innerHTML = '';
+    });
+    
+    // Move tasks to appropriate columns
+    const tasks = document.querySelectorAll('.task-item');
+    tasks.forEach(task => {
+        const status = task.dataset.status;
+        const column = document.getElementById(`${status}-tasks`);
+        if (column) {
+            // Clone task for kanban view
+            const kanbanTask = createKanbanTask(task);
+            column.appendChild(kanbanTask);
+        }
+    });
+    
+    // Update counters
+    updateKanbanCounters();
+}
+
+function createKanbanTask(originalTask) {
+    const kanbanTask = document.createElement('div');
+    kanbanTask.className = 'bg-white rounded-lg p-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer';
+    kanbanTask.draggable = true;
+    kanbanTask.dataset.taskId = originalTask.dataset.taskId;
+    kanbanTask.dataset.status = originalTask.dataset.status;
+    
+    // Extract task data
+    const title = originalTask.querySelector('.task-title').textContent;
+    const priority = originalTask.dataset.priority;
+    const assignee = originalTask.querySelector('.task-assignee')?.textContent || 'Unassigned';
+    
+    kanbanTask.innerHTML = `
+        <div class="drag-handle mb-2">
+            <h4 class="text-sm font-medium text-gray-900 truncate">${title}</h4>
+        </div>
+        <div class="flex items-center justify-between text-xs">
+            <span class="text-gray-600">${assignee}</span>
+            <span class="priority-badge priority-${priority} px-2 py-1 rounded-full text-xs font-medium">
+                ${priority}
+            </span>
+        </div>
+    `;
+    
+    // Add drag and drop event listeners
+    addDragDropListeners(kanbanTask);
+    
+    return kanbanTask;
+}
+
+function addDragDropListeners(task) {
+    task.addEventListener('dragstart', function(e) {
+        e.dataTransfer.setData('text/plain', this.dataset.taskId);
+        this.style.opacity = '0.5';
+    });
+    
+    task.addEventListener('dragend', function(e) {
+        this.style.opacity = '1';
+    });
+}
+
+// Add drop zones for kanban columns
+document.querySelectorAll('.kanban-column').forEach(column => {
+    column.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
+    });
+    
+    column.addEventListener('dragleave', function(e) {
+        this.classList.remove('drag-over');
+    });
+    
+    column.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        
+        const taskId = e.dataTransfer.getData('text/plain');
+        const newStatus = this.dataset.status;
+        
+        // Update task status via HTMX
+        htmx.ajax('POST', `/teams/{{ team.id }}/tasks/${taskId}/status/`, {
+            values: { status: newStatus },
+            target: `#task-${taskId}`,
+            swap: 'outerHTML'
+        });
+        
+        // Move task in kanban view
+        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskElement) {
+            this.querySelector('.space-y-3').appendChild(taskElement);
+            updateKanbanCounters();
+        }
+    });
+});
+
+function updateKanbanCounters() {
+    ['todo', 'in_progress', 'waiting', 'completed'].forEach(status => {
+        const tasks = document.querySelectorAll(`#${status}-tasks .bg-white`);
+        const counter = document.querySelector(`[data-status="${status}"] .px-2`);
+        if (counter) {
+            counter.textContent = tasks.length;
+        }
+    });
+}
+
+// Auto-refresh task list every 60 seconds
+setInterval(() => {
+    if (!document.getElementById('kanban-view').classList.contains('hidden')) {
+        populateKanbanBoard();
+    }
+}, 60000);
+</script>
+{% endblock %}

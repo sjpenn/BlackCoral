@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     "apps.documents",
     "apps.ai_integration",
     "apps.compliance",
+    "apps.collaboration",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -175,6 +177,23 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# Cache Configuration (using Redis)
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': env("REDIS_URL", default="redis://localhost:6379/1"),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
 
 # Security Settings
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["https://localhost:8000"])
@@ -197,6 +216,16 @@ AUTH_USER_MODEL = "authentication.User"
 LOGIN_URL = '/auth/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
+
+# AI Integration Settings
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+GOOGLE_AI_API_KEY = os.getenv('GOOGLE_AI_API_KEY')
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
+
+AI_DEFAULT_PROVIDER = os.getenv('AI_DEFAULT_PROVIDER', 'claude')
+AI_FALLBACK_ENABLED = os.getenv('AI_FALLBACK_ENABLED', 'True').lower() == 'true'
+SITE_URL = os.getenv('SITE_URL', 'https://blackcoral.ai')
+SITE_NAME = os.getenv('SITE_NAME', 'BLACK CORAL')
 
 # Logging Configuration
 LOGGING = {

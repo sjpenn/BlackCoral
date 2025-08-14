@@ -14,6 +14,8 @@ urlpatterns = [
     path("documents/", include("apps.documents.urls")),
     path("ai/", include("apps.ai_integration.urls")),
     path("compliance/", include("apps.compliance.urls")),
+    path("teams/", include("apps.collaboration.urls")),
+    path("notifications/", include("apps.notifications.urls")),
 ]
 
 # Serve media files in development

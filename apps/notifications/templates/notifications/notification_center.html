@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Notification Center - BLACK CORAL{% endblock %}
+
+{% block extra_css %}
+<style>
+.notification-item {
+    border-left: 4px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.notification-item.unread {
+    border-left-color: #3b82f6;
+    background-color: #f8fafc;
+}
+
+.notification-item.priority-urgent {
+    border-left-color: #dc2626;
+}
+
+.notification-item.priority-high {
+    border-left-color: #ea580c;
+}
+
+.notification-item.priority-medium {
+    border-left-color: #d97706;
+}
+
+.notification-item.priority-low {
+    border-left-color: #059669;
+}
+
+.notification-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Notification Center</h1>
+            <p class="text-gray-600">Stay updated with your BLACK CORAL activities</p>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- Unread count badge -->
+            <div id="unread-badge" hx-get="{% url 'notifications:badge_htmx' %}" hx-trigger="load, every 30s">
+                {% include 'notifications/partials/notification_badge.html' %}
+            </div>
+            
+            <!-- Mark all read button -->
+            <button 
+                hx-post="{% url 'notifications:mark_all_read' %}"
+                hx-target="#notification-list"
+                hx-confirm="Mark all notifications as read?"
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Mark All Read
+            </button>
+            
+            <!-- Preferences link -->
+            <a href="{% url 'notifications:preferences' %}" 
+               class="text-blue-600 hover:text-blue-800 font-medium">
+                Preferences
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <label for="filter-type" class="text-sm font-medium text-gray-700">Type:</label>
+                <select id="filter-type" 
+                        hx-get="{% url 'notifications:list_htmx' %}"
+                        hx-target="#notification-list"
+                        hx-include="[name='unread-only']"
+                        name="type"
+                        class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                    <option value="">All Types</option>
+                    <option value="opportunity_new">New Opportunities</option>
+                    <option value="task_assigned">Task Assignments</option>
+                    <option value="team_assignment">Team Assignments</option>
+                    <option value="milestone_approaching">Milestones</option>
+                    <option value="comment_mention">Comments & Mentions</option>
+                    <option value="system_update">System Updates</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" 
+                       id="unread-only"
+                       name="unread-only"
+                       hx-get="{% url 'notifications:list_htmx' %}"
+                       hx-target="#notification-list"
+                       hx-include="[name='type']"
+                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                <label for="unread-only" class="text-sm font-medium text-gray-700">Unread only</label>
+            </div>
+            
+            <!-- Search -->
+            <div class="flex-1 max-w-md">
+                <div class="relative">
+                    <input type="text" 
+                           placeholder="Search notifications..."
+                           hx-get="{% url 'notifications:search' %}"
+                           hx-target="#notification-list"
+                           hx-trigger="keyup changed delay:500ms"
+                           name="q"
+                           class="w-full border border-gray-300 rounded-md px-3 py-1 pl-10 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification List -->
+    <div id="notification-list" 
+         hx-get="{% url 'notifications:list_htmx' %}" 
+         hx-trigger="load, every 60s"
+         class="space-y-4">
+        {% include 'notifications/partials/notification_list.html' %}
+    </div>
+</div>
+
+<!-- Real-time polling for new notifications -->
+<div hx-get="{% url 'notifications:poll_htmx' %}" 
+     hx-trigger="every 30s"
+     hx-vars="last_check: new Date().toISOString()"
+     style="display: none;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Handle notification click sounds and animations
+document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target.id === 'notification-list') {
+        // Animate new notifications
+        const newItems = e.detail.target.querySelectorAll('.notification-item[data-new="true"]');
+        newItems.forEach(item => {
+            item.classList.add('animate-pulse');
+            setTimeout(() => {
+                item.classList.remove('animate-pulse');
+                item.removeAttribute('data-new');
+            }, 2000);
+        });
+    }
+});
+
+// Auto-refresh notification count
+setInterval(() => {
+    htmx.trigger('#unread-badge', 'refresh');
+}, 30000);
+</script>
+{% endblock %}

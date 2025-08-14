@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ team.name }} - BLACK CORAL{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.activity-item {
+    border-left: 3px solid #e5e7eb;
+    transition: border-color 0.3s ease;
+}
+
+.activity-item:hover {
+    border-left-color: #3b82f6;
+}
+
+.member-avatar {
+    position: relative;
+}
+
+.member-avatar.online::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    background: #10b981;
+    border: 2px solid white;
+    border-radius: 50%;
+}
+
+.progress-bar {
+    transition: width 0.8s ease-in-out;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+    <!-- Team Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-start justify-between">
+            <div class="flex-1">
+                <div class="flex items-center space-x-4 mb-2">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ team.name }}</h1>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                        {% if team.status == 'active' %}bg-green-100 text-green-800
+                        {% elif team.status == 'forming' %}bg-yellow-100 text-yellow-800
+                        {% elif team.status == 'submitting' %}bg-blue-100 text-blue-800
+                        {% elif team.status == 'completed' %}bg-gray-100 text-gray-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ team.get_status_display }}
+                    </span>
+                </div>
+                
+                <p class="text-gray-600 mb-2">{{ team.opportunity.solicitation_number }}</p>
+                <p class="text-sm text-gray-500">{{ team.opportunity.title }}</p>
+                
+                {% if team.description %}
+                    <p class="text-sm text-gray-700 mt-3">{{ team.description }}</p>
+                {% endif %}
+                
+                <!-- Key dates -->
+                <div class="flex items-center space-x-6 mt-4 text-sm">
+                    {% if team.kickoff_date %}
+                        <div class="flex items-center text-gray-600">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Kickoff: {{ team.kickoff_date|date:"M j" }}
+                        </div>
+                    {% endif %}
+                    
+                    {% if team.submission_deadline %}
+                        <div class="flex items-center 
+                            {% if team.days_until_deadline <= 3 %}text-red-600
+                            {% elif team.days_until_deadline <= 7 %}text-yellow-600
+                            {% else %}text-gray-600{% endif %}">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Due: {{ team.submission_deadline|date:"M j" }} ({{ team.days_until_deadline }} days)
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Action buttons -->
+            <div class="flex items-center space-x-3">
+                {% if can_manage %}
+                    <button class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Manage
+                    </button>
+                {% endif %}
+                
+                <a href="{% url 'collaboration:team_tasks' team.id %}" 
+                   class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    View Tasks
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Live stats dashboard -->
+    <div id="dashboard-stats" 
+         hx-get="{% url 'collaboration:dashboard_htmx' team.id %}" 
+         hx-trigger="load, every 30s"
+         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {% include 'collaboration/partials/dashboard_stats.html' %}
+    </div>
+    
+    <!-- Main Dashboard Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Progress & Activity -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Progress Overview -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Progress Overview</h3>
+                
+                <!-- Overall progress bar -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">Overall Completion</span>
+                        <span class="text-sm text-gray-500">{{ stats.progress_percentage|floatformat:1 }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div class="progress-bar bg-blue-600 h-3 rounded-full" 
+                             style="width: {{ stats.progress_percentage }}%"></div>
+                    </div>
+                </div>
+                
+                <!-- Section breakdown -->
+                <div class="space-y-3">
+                    <h4 class="text-sm font-medium text-gray-700">Section Progress</h4>
+                    {% if team.sections.exists %}
+                        {% for section in team.sections.all|slice:":5" %}
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600 truncate flex-1">
+                                    {{ section.section_number }} - {{ section.title|truncatechars:30 }}
+                                </span>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ml-2
+                                    {% if section.status == 'approved' %}bg-green-100 text-green-800
+                                    {% elif section.status == 'under_review' %}bg-blue-100 text-blue-800
+                                    {% elif section.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ section.get_status_display }}
+                                </span>
+                            </div>
+                        {% endfor %}
+                        {% if team.sections.count > 5 %}
+                            <div class="text-center">
+                                <a href="{% url 'collaboration:team_sections' team.id %}" 
+                                   class="text-sm text-blue-600 hover:text-blue-800">
+                                    View all {{ team.sections.count }} sections →
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-sm text-gray-500 italic">No sections created yet</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                    <a href="{% url 'collaboration:team_comments' team.id %}" 
+                       class="text-sm text-blue-600 hover:text-blue-800">View all</a>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Recent tasks -->
+                    {% for task in recent_tasks %}
+                        <div class="activity-item pl-4 py-2">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-900">
+                                        <span class="font-medium">{{ task.assigned_to.get_full_name|default:"Unassigned" }}</span>
+                                        {% if task.status == 'completed' %}completed{% else %}updated{% endif %}
+                                        task: <span class="font-medium">{{ task.title }}</span>
+                                    </p>
+                                    <p class="text-xs text-gray-500">{{ task.updated_at|timesince }} ago</p>
+                                </div>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                    {% if task.status == 'completed' %}bg-green-100 text-green-800
+                                    {% elif task.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                    {% elif task.status == 'todo' %}bg-gray-100 text-gray-800
+                                    {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                    {{ task.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-gray-500 italic">No recent activity</p>
+                    {% endfor %}
+                    
+                    <!-- Recent comments -->
+                    {% for comment in recent_comments %}
+                        <div class="activity-item pl-4 py-2">
+                            <div class="flex items-start">
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-900">
+                                        <span class="font-medium">{{ comment.author.get_full_name }}</span>
+                                        commented: <span class="text-gray-700">{{ comment.content|truncatechars:50 }}</span>
+                                    </p>
+                                    <p class="text-xs text-gray-500">{{ comment.created_at|timesince }} ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Team & Milestones -->
+        <div class="space-y-6">
+            
+            <!-- Team Members -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Team Members</h3>
+                    <span class="text-sm text-gray-500">{{ stats.active_members }} active</span>
+                </div>
+                
+                <div class="space-y-3">
+                    <!-- Team lead -->
+                    {% if team.lead %}
+                        <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <div class="member-avatar w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                    <span class="text-sm font-medium text-white">
+                                        {{ team.lead.first_name|first }}{{ team.lead.last_name|first }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ team.lead.get_full_name }}</p>
+                                    <p class="text-xs text-blue-600">Team Lead</p>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                <svg class="w-4 h-4 inline text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Other members -->
+                    {% for member_info in members_workload %}
+                        {% if member_info.membership.user != team.lead %}
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="member-avatar w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                                        <span class="text-sm font-medium text-gray-700">
+                                            {{ member_info.membership.user.first_name|first }}{{ member_info.membership.user.last_name|first }}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ member_info.membership.user.get_full_name }}</p>
+                                        <p class="text-xs text-gray-500">{{ member_info.membership.get_role_display }}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right text-xs text-gray-500">
+                                    <div>{{ member_info.active_tasks }} active</div>
+                                    <div>{{ member_info.completion_rate|floatformat:0 }}% done</div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Upcoming Milestones -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Upcoming Milestones</h3>
+                    <a href="{% url 'collaboration:team_milestones' team.id %}" 
+                       class="text-sm text-blue-600 hover:text-blue-800">View all</a>
+                </div>
+                
+                {% if upcoming_milestones %}
+                    <div class="space-y-3">
+                        {% for milestone in upcoming_milestones %}
+                            <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ milestone.title }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        {{ milestone.target_date|date:"M j" }} 
+                                        ({{ milestone.days_until_due }} days)
+                                    </p>
+                                </div>
+                                <div class="text-xs 
+                                    {% if milestone.days_until_due <= 3 %}text-red-600
+                                    {% elif milestone.days_until_due <= 7 %}text-yellow-600
+                                    {% else %}text-gray-600{% endif %}">
+                                    {% if milestone.is_overdue %}
+                                        Overdue
+                                    {% else %}
+                                        Due soon
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-sm text-gray-500 italic">No upcoming milestones</p>
+                {% endif %}
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                
+                <div class="space-y-2">
+                    <a href="{% url 'collaboration:team_tasks' team.id %}" 
+                       class="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
+                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Manage Tasks</span>
+                    </a>
+                    
+                    <a href="{% url 'collaboration:team_sections' team.id %}" 
+                       class="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
+                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Proposal Sections</span>
+                    </a>
+                    
+                    <a href="{% url 'collaboration:team_comments' team.id %}" 
+                       class="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
+                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Team Discussion</span>
+                    </a>
+                    
+                    <a href="{% url 'collaboration:team_analytics' team.id %}" 
+                       class="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
+                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Analytics</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh dashboard stats
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate progress bars on load
+    setTimeout(() => {
+        document.querySelectorAll('.progress-bar').forEach(bar => {
+            bar.style.transition = 'width 0.8s ease-in-out';
+        });
+    }, 100);
+});
+
+// Handle real-time updates
+document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target.id === 'dashboard-stats') {
+        // Re-animate updated stats
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                card.style.transform = 'scale(1)';
+            }, 200);
+        });
+    }
+});
+</script>
+{% endblock %}

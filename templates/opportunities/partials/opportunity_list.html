@@ -1,0 +1,145 @@
+{% for opportunity in opportunities %}
+<div class="opportunity-card">
+    <div class="opportunity-header">
+        <div style="display: flex; justify-content: between; align-items: start; gap: 1rem;">
+            <div style="flex: 1;">
+                <h3 style="margin-bottom: 0.5rem;">
+                    <a href="{% url 'opportunities:detail' opportunity.id %}" 
+                       style="color: #1e40af; text-decoration: none;">
+                        {{ opportunity.title }}
+                    </a>
+                </h3>
+                <div class="opportunity-meta">
+                    <strong>{{ opportunity.solicitation_number }}</strong>
+                    {% if opportunity.agency %}
+                        • {{ opportunity.agency.name }}
+                    {% endif %}
+                    {% if opportunity.opportunity_type %}
+                        • {{ opportunity.opportunity_type }}
+                    {% endif %}
+                    {% if opportunity.set_aside_type %}
+                        • {{ opportunity.set_aside_type }}
+                    {% endif %}
+                </div>
+                <div class="opportunity-meta">
+                    Posted: {{ opportunity.posted_date|date:"M d, Y" }}
+                    {% if opportunity.response_date %}
+                        • Response Due: {{ opportunity.response_date|date:"M d, Y" }}
+                        {% if opportunity.days_until_response %}
+                            ({{ opportunity.days_until_response }} days left)
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% if opportunity.naics_codes.exists %}
+                <div class="opportunity-meta">
+                    NAICS: 
+                    {% for naics in opportunity.naics_codes.all %}
+                        <span style="background: #f3f4f6; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem;">
+                            {{ naics.code }}
+                        </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                {% if opportunity.is_open %}
+                    {% if opportunity.days_until_response and opportunity.days_until_response <= 7 %}
+                        <span class="status-badge status-closing">Closing Soon</span>
+                    {% else %}
+                        <span class="status-badge status-open">Open</span>
+                    {% endif %}
+                {% else %}
+                    <span class="status-badge status-closed">Closed</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if opportunity.description %}
+        <div style="margin-top: 1rem; color: #4b5563; font-size: 0.9rem;">
+            {{ opportunity.description|truncatewords:30 }}
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="opportunity-actions" style="display: flex; justify-content: between; align-items: center;">
+        <div style="display: flex; gap: 1rem; align-items: center; font-size: 0.875rem; color: #6b7280;">
+            {% if opportunity.documents.exists %}
+            <span>📄 {{ opportunity.documents.count }} document{{ opportunity.documents.count|pluralize }}</span>
+            {% endif %}
+            {% if opportunity.documents_fetched %}
+                <span style="color: #059669;">✓ Docs fetched</span>
+            {% endif %}
+            {% if opportunity.ai_analysis_complete %}
+                <span style="color: #059669;">🤖 AI analyzed</span>
+            {% endif %}
+            {% if opportunity.compliance_checked %}
+                <span style="color: #059669;">✓ Compliance checked</span>
+            {% endif %}
+            {% if opportunity.usaspending_analyzed %}
+                <span style="color: #059669;">📊 Spending analyzed</span>
+            {% endif %}
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{% url 'opportunities:detail' opportunity.id %}" 
+               class="btn btn-primary"
+               style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                View Details
+            </a>
+            {% if opportunity.source_url %}
+            <a href="{{ opportunity.source_url }}" 
+               target="_blank"
+               class="btn"
+               style="padding: 0.5rem 1rem; font-size: 0.875rem; background: transparent; border: 1px solid #d1d5db;">
+                SAM.gov ↗
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% empty %}
+<div style="text-align: center; padding: 3rem; color: #6b7280;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+    <h3>No opportunities found</h3>
+    <p>Try adjusting your search filters or refresh from SAM.gov to get the latest opportunities.</p>
+    {% if user.can_research_opportunities %}
+    <button 
+        hx-post="{% url 'opportunities:refresh' %}"
+        hx-target="#refresh-status"
+        class="btn btn-primary"
+        style="margin-top: 1rem;">
+        Refresh from SAM.gov
+    </button>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Pagination -->
+{% if opportunities.has_other_pages %}
+<div class="pagination">
+    {% if opportunities.has_previous %}
+    <a href="#" 
+       hx-get="{% url 'opportunities:list' %}?page={{ opportunities.previous_page_number }}{% if filters.search %}&search={{ filters.search }}{% endif %}{% if filters.naics %}&naics={{ filters.naics }}{% endif %}{% if filters.agency %}&agency={{ filters.agency }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}"
+       hx-target="#opportunity-results"
+       class="page-link">← Previous</a>
+    {% endif %}
+    
+    {% for num in opportunities.paginator.page_range %}
+        {% if opportunities.number == num %}
+            <span class="page-link active">{{ num }}</span>
+        {% elif num > opportunities.number|add:'-3' and num < opportunities.number|add:'3' %}
+            <a href="#"
+               hx-get="{% url 'opportunities:list' %}?page={{ num }}{% if filters.search %}&search={{ filters.search }}{% endif %}{% if filters.naics %}&naics={{ filters.naics }}{% endif %}{% if filters.agency %}&agency={{ filters.agency }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}"
+               hx-target="#opportunity-results"
+               class="page-link">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+    
+    {% if opportunities.has_next %}
+    <a href="#"
+       hx-get="{% url 'opportunities:list' %}?page={{ opportunities.next_page_number }}{% if filters.search %}&search={{ filters.search }}{% endif %}{% if filters.naics %}&naics={{ filters.naics }}{% endif %}{% if filters.agency %}&agency={{ filters.agency }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}"
+       hx-target="#opportunity-results"
+       class="page-link">Next →</a>
+    {% endif %}
+</div>
+{% endif %}

@@ -8,6 +8,7 @@ django-htmx==1.17.*
 
 # API and External Integrations
 requests==2.31.*
+requests-cache==1.1.*
 celery==5.3.*
 redis==5.0.*
 
@@ -16,6 +17,9 @@ PyMuPDF==1.23.*
 python-docx==1.1.*
 pytesseract==0.3.*
 Pillow==10.1.*
+pandas==2.1.*
+openpyxl==3.1.*
+beautifulsoup4==4.12.*
 
 # AI Integration
 anthropic==0.7.*
@@ -24,6 +28,7 @@ google-generativeai==0.3.*
 # Development and Testing
 pytest==7.4.*
 pytest-django==4.7.*
+pytest-celery==0.0.*
 black==23.9.*
 flake8==6.1.*
 coverage==7.3.*
@@ -36,3 +41,6 @@ django-cors-headers==4.3.*
 # Security
 django-csp==3.8.*
 django-ratelimit==4.1.*
+
+# Task monitoring
+flower==2.0.*

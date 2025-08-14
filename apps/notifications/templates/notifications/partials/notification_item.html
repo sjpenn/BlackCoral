@@ -1,0 +1,99 @@
+<div class="notification-item bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow {% if not notification.is_read %}unread{% endif %} priority-{{ notification.priority }}"
+     data-notification-id="{{ notification.id }}">
+    
+    <div class="flex items-start justify-between">
+        <div class="flex-1 min-w-0">
+            <!-- Header with title and timestamp -->
+            <div class="flex items-start justify-between mb-2">
+                <h3 class="text-sm font-semibold text-gray-900 truncate pr-2">
+                    {{ notification.title }}
+                </h3>
+                
+                <div class="flex items-center space-x-2 flex-shrink-0">
+                    <!-- Priority indicator -->
+                    {% if notification.priority == 'urgent' %}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            Urgent
+                        </span>
+                    {% elif notification.priority == 'high' %}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            High
+                        </span>
+                    {% elif notification.priority == 'low' %}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Low
+                        </span>
+                    {% endif %}
+                    
+                    <!-- Timestamp -->
+                    <time class="text-xs text-gray-500" datetime="{{ notification.created_at|date:'c' }}">
+                        {{ notification.created_at|timesince }} ago
+                    </time>
+                </div>
+            </div>
+            
+            <!-- Message content -->
+            <p class="text-sm text-gray-700 mb-3 leading-relaxed">
+                {{ notification.message }}
+            </p>
+            
+            <!-- Notification type badge -->
+            <div class="flex items-center justify-between">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    {{ notification.get_notification_type_display }}
+                </span>
+                
+                <!-- Action buttons -->
+                <div class="flex items-center space-x-2">
+                    {% if notification.action_url %}
+                        <a href="{{ notification.action_url }}" 
+                           class="text-blue-600 hover:text-blue-800 text-xs font-medium">
+                            {{ notification.action_label|default:"View" }}
+                        </a>
+                    {% endif %}
+                    
+                    {% if not notification.is_read %}
+                        <button hx-post="{% url 'notifications:mark_read' notification.id %}"
+                                hx-target="closest .notification-item"
+                                hx-swap="outerHTML"
+                                class="text-gray-400 hover:text-gray-600 text-xs">
+                            Mark Read
+                        </button>
+                    {% endif %}
+                    
+                    <button hx-post="{% url 'notifications:dismiss' notification.id %}"
+                            hx-target="closest .notification-item"
+                            hx-swap="outerHTML swap:1s"
+                            hx-confirm="Dismiss this notification?"
+                            class="text-gray-400 hover:text-red-600 text-xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Unread indicator -->
+        {% if not notification.is_read %}
+            <div class="ml-4 flex-shrink-0">
+                <div class="w-2 h-2 bg-blue-600 rounded-full"></div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Expandable metadata (if available) -->
+    {% if notification.metadata %}
+        <details class="mt-3">
+            <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                Additional details
+            </summary>
+            <div class="mt-2 p-2 bg-gray-50 rounded text-xs">
+                <pre class="whitespace-pre-wrap text-gray-600">{{ notification.metadata|pprint }}</pre>
+            </div>
+        </details>
+    {% endif %}
+</div>

@@ -1,23 +1,155 @@
 {% extends 'base.html' %}
 
-{% block title %}Opportunities - BLACK CORAL{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .search-container { margin-bottom: 2rem; }
+    .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+    .opportunity-card { background: white; border-left: 4px solid #3b82f6; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .opportunity-header { padding: 1.5rem; }
+    .opportunity-meta { color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem; }
+    .opportunity-actions { padding: 0 1.5rem 1.5rem; border-top: 1px solid #f3f4f6; margin-top: 1rem; padding-top: 1rem; }
+    .status-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; }
+    .status-open { background: #d1fae5; color: #047857; }
+    .status-closing { background: #fed7aa; color: #ea580c; }
+    .status-closed { background: #fee2e2; color: #dc2626; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+    .stat-number { font-size: 2rem; font-weight: bold; color: #1e40af; }
+    .pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem; }
+    .page-link { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; background: white; text-decoration: none; color: #374151; }
+    .page-link:hover { background: #f3f4f6; }
+    .page-link.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+    .htmx-request .htmx-indicator { opacity: 1; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="opportunities-container">
-    <h2>Government Contracting Opportunities</h2>
-    
-    <div class="coming-soon" style="background: white; padding: 3rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
-        <h3>Feature Coming Soon</h3>
-        <p>Opportunity discovery and filtering will be implemented in Phase 2 of development.</p>
-        <p>This will include:</p>
-        <ul style="text-align: left; max-width: 400px; margin: 1rem auto;">
-            <li>Real-time sam.gov API integration</li>
-            <li>NAICS code filtering</li>
-            <li>Agency and keyword search</li>
-            <li>SOW/PWS document extraction</li>
-            <li>AI-powered opportunity analysis</li>
-        </ul>
-        <a href="{% url 'core:dashboard' %}" class="btn btn-primary" style="margin-top: 1rem;">Back to Dashboard</a>
+<div class="opportunity-search">
+    <div class="page-header">
+        <h2>{{ page_title }}</h2>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <span id="total-count">{{ total_count }} opportunities</span>
+            {% if user.can_research_opportunities %}
+            <button 
+                hx-post="{% url 'opportunities:refresh' %}"
+                hx-trigger="click"
+                hx-target="#refresh-status"
+                hx-indicator="#refresh-spinner"
+                class="btn btn-primary">
+                <span class="htmx-indicator" id="refresh-spinner">⟳</span>
+                Refresh from SAM.gov
+            </button>
+            {% endif %}
+            <div id="refresh-status"></div>
+        </div>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div class="stats-grid" 
+         hx-get="{% url 'opportunities:stats' %}"
+         hx-trigger="load, every 30s"
+         hx-target="this"
+         hx-swap="innerHTML">
+        <div class="stat-card">
+            <div class="stat-number">-</div>
+            <div>Total Active</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">-</div>
+            <div>Open for Bids</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">-</div>
+            <div>Closing Soon</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">-</div>
+            <div>Docs Processed</div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="search-container">
+        <form hx-get="{% url 'opportunities:list' %}" 
+              hx-target="#opportunity-results" 
+              hx-trigger="submit, input delay:500ms from:input[name='search']"
+              hx-indicator="#search-spinner">
+            
+            <div class="filters">
+                <div>
+                    <label for="search" class="form-label">Search Opportunities</label>
+                    <input type="text" 
+                           id="search" 
+                           name="search" 
+                           value="{{ filters.search }}"
+                           placeholder="Search by title, description, or solicitation number..."
+                           class="form-input">
+                </div>
+                
+                <div>
+                    <label for="naics" class="form-label">NAICS Code</label>
+                    <select id="naics" name="naics" class="form-input">
+                        <option value="">All NAICS</option>
+                        {% for naics in available_naics %}
+                        <option value="{{ naics.code }}" {% if filters.naics == naics.code %}selected{% endif %}>
+                            {{ naics.code }} - {{ naics.title|truncatechars:30 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="agency" class="form-label">Agency</label>
+                    <select id="agency" name="agency" class="form-input">
+                        <option value="">All Agencies</option>
+                        {% for agency in available_agencies %}
+                        <option value="{{ agency.id }}" {% if filters.agency|stringformat:"s" == agency.id|stringformat:"s" %}selected{% endif %}>
+                            {{ agency.abbreviation }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="status" class="form-label">Status</label>
+                    <select id="status" name="status" class="form-input">
+                        <option value="open" {% if filters.status == 'open' %}selected{% endif %}>Open</option>
+                        <option value="closing_soon" {% if filters.status == 'closing_soon' %}selected{% endif %}>Closing Soon</option>
+                        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="htmx-indicator" id="search-spinner">🔄</span>
+                        Search
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results -->
+    <div id="opportunity-results">
+        {% include 'opportunities/partials/opportunity_list.html' %}
     </div>
 </div>
+
+<script>
+// Auto-refresh stats periodically
+setInterval(function() {
+    htmx.trigger('#stats-container', 'refresh');
+}, 60000); // Refresh every minute
+
+// Show loading state for refresh button
+document.addEventListener('htmx:beforeRequest', function(event) {
+    if (event.detail.target.id === 'refresh-status') {
+        document.getElementById('refresh-status').innerHTML = 
+            '<span style="color: #3b82f6;">Fetching opportunities...</span>';
+    }
+});
+</script>
 {% endblock %}
