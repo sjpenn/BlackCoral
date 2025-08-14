@@ -1,0 +1,470 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Workflow - {{ section.title }} - BLACK CORAL{% endblock %}
+
+{% block extra_css %}
+<style>
+.workflow-step {
+    position: relative;
+}
+
+.workflow-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 2rem;
+    left: 1rem;
+    width: 2px;
+    height: calc(100% - 2rem);
+    background: #e5e7eb;
+    z-index: -1;
+}
+
+.workflow-step.completed::after {
+    background: #10b981;
+}
+
+.step-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.step-pending {
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 2px solid #e5e7eb;
+}
+
+.step-current {
+    background: #3b82f6;
+    color: white;
+    border: 2px solid #3b82f6;
+    animation: pulse 2s infinite;
+}
+
+.step-completed {
+    background: #10b981;
+    color: white;
+    border: 2px solid #10b981;
+}
+
+.review-card, .approval-card {
+    transition: all 0.3s ease;
+}
+
+.review-card:hover, .approval-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.6s ease;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <div class="mb-8">
+            <nav class="text-sm breadcrumbs mb-4">
+                <a href="{% url 'collaboration:team_list' %}" class="text-blue-600 hover:text-blue-800 font-medium">Teams</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <a href="{% url 'collaboration:team_detail' team.id %}" class="text-blue-600 hover:text-blue-800 font-medium">{{ team.name }}</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <a href="{% url 'collaboration:team_sections' team.id %}" class="text-blue-600 hover:text-blue-800 font-medium">Sections</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <span class="text-gray-700 font-medium">{{ section.section_number }} Workflow</span>
+            </nav>
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ section.title }}</h1>
+                    <p class="text-gray-600 mt-2">Section {{ section.section_number }} Workflow Management</p>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <!-- Workflow Progress -->
+                    {% if workflow %}
+                        <div class="flex items-center space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                            <svg class="progress-ring w-8 h-8" viewBox="0 0 32 32">
+                                <circle cx="16" cy="16" r="14" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+                                <circle cx="16" cy="16" r="14" fill="none" stroke="#3b82f6" stroke-width="4"
+                                        stroke-dasharray="87.96" 
+                                        stroke-dashoffset="{{ workflow.progress_percentage|floatformat:0|add:'-87.96'|mul:0.88 }}"
+                                        class="progress-ring-circle"/>
+                            </svg>
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">{{ workflow.progress_percentage|floatformat:0 }}%</div>
+                                <div class="text-xs text-gray-500">Complete</div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Quick Actions -->
+                    <a href="{% url 'collaboration:section_editor' team.id section.id %}" 
+                       class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Edit Section
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Workflow Progress Column -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-6">Workflow Progress</h2>
+                    
+                    {% if workflow %}
+                        <div class="space-y-6">
+                            <!-- Current Status -->
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="step-icon step-current">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ workflow.get_status_display }}</div>
+                                        <div class="text-sm text-gray-600">
+                                            {% if workflow.current_step %}
+                                                Current: {{ workflow.current_step|title }}
+                                            {% else %}
+                                                Workflow complete
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Workflow Steps -->
+                            <div class="space-y-4">
+                                {% for step in workflow.steps_completed %}
+                                    <div class="workflow-step completed flex items-start space-x-3">
+                                        <div class="step-icon step-completed">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ step|title }}</div>
+                                            <div class="text-sm text-gray-600">Completed</div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                                
+                                {% if workflow.current_step %}
+                                    <div class="workflow-step current flex items-start space-x-3">
+                                        <div class="step-icon step-current">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ workflow.current_step|title }}</div>
+                                            <div class="text-sm text-gray-600">In Progress</div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                
+                                {% for step in workflow.steps_pending %}
+                                    <div class="workflow-step pending flex items-start space-x-3">
+                                        <div class="step-icon step-pending">
+                                            {{ forloop.counter }}
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ step|title }}</div>
+                                            <div class="text-sm text-gray-600">Pending</div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- Workflow Actions -->
+                            {% if can_manage and workflow.current_step %}
+                                <div class="pt-4 border-t border-gray-200">
+                                    <button id="advance-workflow" 
+                                            class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium">
+                                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                        </svg>
+                                        Advance Workflow
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <!-- Start Workflow -->
+                        <div class="text-center">
+                            <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                            <h3 class="mt-4 text-lg font-medium text-gray-900">No Workflow Started</h3>
+                            <p class="mt-2 text-gray-500">Start the workflow process for this section.</p>
+                            <div class="mt-6">
+                                <button id="start-workflow" 
+                                        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    Start Workflow
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Reviews and Approvals -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Reviews Section -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-semibold text-gray-900">Reviews</h2>
+                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                            {{ reviews.count }} total
+                        </span>
+                    </div>
+                    
+                    {% if reviews %}
+                        <div class="space-y-4">
+                            {% for review in reviews %}
+                                <div class="review-card border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center space-x-3 mb-2">
+                                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium">
+                                                    {{ review.get_review_type_display }}
+                                                </span>
+                                                <span class="review-status px-2 py-1 rounded text-xs font-medium
+                                                    {% if review.status == 'completed' %}bg-green-100 text-green-800
+                                                    {% elif review.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                    {{ review.get_status_display }}
+                                                </span>
+                                                {% if review.is_overdue %}
+                                                    <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
+                                                        Overdue
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="flex items-center space-x-2 mb-2">
+                                                <div class="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
+                                                    <span class="text-xs font-medium text-white">
+                                                        {{ review.reviewer.first_name|first }}{{ review.reviewer.last_name|first }}
+                                                    </span>
+                                                </div>
+                                                <span class="font-medium text-gray-900">{{ review.reviewer.get_full_name }}</span>
+                                            </div>
+                                            
+                                            {% if review.due_date %}
+                                                <div class="text-sm text-gray-600">
+                                                    Due: {{ review.due_date|date:"M j, Y" }}
+                                                </div>
+                                            {% endif %}
+                                            
+                                            {% if review.feedback %}
+                                                <div class="mt-2 text-sm text-gray-700 bg-gray-50 rounded p-2">
+                                                    {{ review.feedback|truncatewords:20 }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="ml-4">
+                                            {% if review.reviewer == request.user and review.status != 'completed' %}
+                                                <a href="{% url 'collaboration:review_section' team.id section.id review.id %}"
+                                                   class="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700">
+                                                    {{ review.status == 'assigned' and 'Start Review' or 'Continue Review' }}
+                                                </a>
+                                            {% elif review.status == 'completed' and review.recommendation %}
+                                                <span class="recommendation px-2 py-1 rounded text-xs font-medium
+                                                    {% if review.recommendation == 'approve' %}bg-green-100 text-green-800
+                                                    {% elif review.recommendation == 'approve_with_changes' %}bg-yellow-100 text-yellow-800
+                                                    {% else %}bg-red-100 text-red-800{% endif %}">
+                                                    {{ review.get_recommendation_display }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <p class="mt-4 text-gray-500">No reviews assigned yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Approvals Section -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-semibold text-gray-900">Approvals</h2>
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                            {{ approvals.count }} total
+                        </span>
+                    </div>
+                    
+                    {% if approvals %}
+                        <div class="space-y-4">
+                            {% for approval in approvals %}
+                                <div class="approval-card border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center space-x-3 mb-2">
+                                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                                                    {{ approval.get_approval_level_display }}
+                                                </span>
+                                                <span class="approval-status px-2 py-1 rounded text-xs font-medium
+                                                    {% if approval.status == 'approved' %}bg-green-100 text-green-800
+                                                    {% elif approval.status == 'rejected' %}bg-red-100 text-red-800
+                                                    {% elif approval.status == 'conditional' %}bg-yellow-100 text-yellow-800
+                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                    {{ approval.get_status_display }}
+                                                </span>
+                                                {% if approval.is_overdue %}
+                                                    <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
+                                                        Overdue
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="flex items-center space-x-2 mb-2">
+                                                <div class="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
+                                                    <span class="text-xs font-medium text-white">
+                                                        {{ approval.approver.first_name|first }}{{ approval.approver.last_name|first }}
+                                                    </span>
+                                                </div>
+                                                <span class="font-medium text-gray-900">{{ approval.approver.get_full_name }}</span>
+                                            </div>
+                                            
+                                            {% if approval.due_date %}
+                                                <div class="text-sm text-gray-600">
+                                                    Due: {{ approval.due_date|date:"M j, Y" }}
+                                                </div>
+                                            {% endif %}
+                                            
+                                            {% if approval.comments %}
+                                                <div class="mt-2 text-sm text-gray-700 bg-gray-50 rounded p-2">
+                                                    {{ approval.comments|truncatewords:20 }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="ml-4">
+                                            {% if approval.approver == request.user and approval.status == 'pending' %}
+                                                <a href="{% url 'collaboration:approve_section' team.id section.id approval.id %}"
+                                                   class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                                    Review & Approve
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="mt-4 text-gray-500">No approvals required yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Start workflow
+document.getElementById('start-workflow')?.addEventListener('click', function() {
+    fetch(`/teams/{{ team.id }}/sections/{{ section.id }}/workflow/start/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error starting workflow: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error starting workflow');
+    });
+});
+
+// Advance workflow
+document.getElementById('advance-workflow')?.addEventListener('click', function() {
+    if (confirm('Are you sure you want to advance this workflow to the next step?')) {
+        fetch(`/teams/{{ team.id }}/sections/{{ section.id }}/workflow/advance/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error advancing workflow: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error advancing workflow');
+        });
+    }
+});
+
+// Utility function for CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

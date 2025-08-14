@@ -1,0 +1,945 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ section.title }} - Section Editor - BLACK CORAL{% endblock %}
+
+{% block extra_css %}
+<!-- Quill Editor CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+<style>
+.editor-container {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.quill-editor {
+    height: 400px;
+    background: white;
+    border-radius: 8px;
+}
+
+.toolbar-container {
+    background: white;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-panel {
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+.comment-thread {
+    border-left: 3px solid #3b82f6;
+    transition: all 0.3s ease;
+}
+
+.comment-thread:hover {
+    border-left-color: #1d4ed8;
+    background-color: #f8fafc;
+}
+
+.revision-item {
+    transition: all 0.3s ease;
+}
+
+.revision-item:hover {
+    background-color: #f3f4f6;
+}
+
+.floating-toolbar {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+.word-count-indicator {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 30;
+}
+
+.collaboration-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+@media (max-width: 1024px) {
+    .sidebar-panel {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 100%;
+        height: 100vh;
+        z-index: 50;
+        background: white;
+        transition: right 0.3s ease;
+    }
+    
+    .sidebar-panel.open {
+        right: 0;
+    }
+}
+
+.autosave-indicator {
+    transition: opacity 0.3s ease;
+}
+
+.suggestion-highlight {
+    background-color: #fef3c7;
+    border-bottom: 2px solid #f59e0b;
+}
+
+.comment-highlight {
+    background-color: #dbeafe;
+    border-bottom: 2px solid #3b82f6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Top Navigation -->
+    <div class="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <!-- Breadcrumb and Title -->
+                <div class="flex-1 min-w-0">
+                    <nav class="text-sm breadcrumbs mb-2">
+                        <a href="{% url 'collaboration:team_list' %}" class="text-blue-600 hover:text-blue-800 font-medium">Teams</a>
+                        <span class="mx-2 text-gray-400">/</span>
+                        <a href="{% url 'collaboration:team_detail' team.id %}" class="text-blue-600 hover:text-blue-800 font-medium">{{ team.name }}</a>
+                        <span class="mx-2 text-gray-400">/</span>
+                        <a href="{% url 'collaboration:team_sections' team.id %}" class="text-blue-600 hover:text-blue-800 font-medium">Sections</a>
+                        <span class="mx-2 text-gray-400">/</span>
+                        <span class="text-gray-700 font-medium">{{ section.section_number }}</span>
+                    </nav>
+                    
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-xl font-bold text-gray-900 truncate">{{ section.title }}</h1>
+                        
+                        <!-- Status Badge -->
+                        <span class="status-indicator {% if section.status == 'approved' %}bg-green-100 text-green-800
+                            {% elif section.status == 'under_review' %}bg-yellow-100 text-yellow-800
+                            {% elif section.status == 'in_progress' %}bg-blue-100 text-blue-800
+                            {% elif section.status == 'draft_complete' %}bg-purple-100 text-purple-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ section.get_status_display }}
+                        </span>
+                        
+                        <!-- Autosave Indicator -->
+                        <div id="autosave-indicator" class="autosave-indicator opacity-0">
+                            <span class="text-xs text-green-600 font-medium">
+                                <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                Saved
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-3">
+                    <!-- Collaboration Info -->
+                    <div class="hidden md:flex items-center space-x-2">
+                        {% if section.assigned_to %}
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                    <span class="text-xs font-medium text-white">
+                                        {{ section.assigned_to.first_name|first }}{{ section.assigned_to.last_name|first }}
+                                    </span>
+                                </div>
+                                <span class="text-sm text-gray-700">{{ section.assigned_to.get_full_name }}</span>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Online collaborators -->
+                        <div id="collaborators" class="flex -space-x-1">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Toggle Sidebar -->
+                    <button id="toggle-sidebar" class="lg:hidden p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Share Button -->
+                    <button class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"/>
+                        </svg>
+                        Share
+                    </button>
+                    
+                    <!-- Save Button -->
+                    <button id="save-section" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        </svg>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Editor Layout -->
+    <div class="flex max-w-7xl mx-auto">
+        <!-- Editor Content -->
+        <div class="flex-1 p-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <!-- Editor Toolbar -->
+                <div id="toolbar" class="toolbar-container">
+                    <!-- Quill toolbar will be rendered here -->
+                </div>
+                
+                <!-- Rich Text Editor -->
+                <div id="editor" class="quill-editor">
+                    <!-- Section content will be loaded here -->
+                    {{ section.content|default:"<p>Start writing your section content here...</p>"|safe }}
+                </div>
+            </div>
+            
+            <!-- Section Metadata -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Word Count Progress -->
+                {% if section.word_count_target %}
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-700">Word Count</h3>
+                            <span id="current-word-count" class="text-sm text-gray-600">
+                                {{ section.word_count_current }}/{{ section.word_count_target }}
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="word-count-bar" class="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-500" 
+                                 style="width: {{ section.word_count_progress }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            <span id="word-count-percentage">{{ section.word_count_progress|floatformat:0 }}</span>% complete
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <!-- Requirements -->
+                {% if section.requirements %}
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Requirements</h3>
+                        <p class="text-sm text-gray-600">{{ section.requirements }}</p>
+                    </div>
+                {% endif %}
+                
+                <!-- Due Date -->
+                {% if section.due_date %}
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Due Date</h3>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span class="text-sm {% if section.is_overdue %}text-red-600{% elif section.days_until_due <= 3 %}text-yellow-600{% else %}text-gray-700{% endif %}">
+                                {{ section.due_date|date:"F j, Y" }}
+                                {% if section.is_overdue %}
+                                    (Overdue)
+                                {% elif section.days_until_due %}
+                                    ({{ section.days_until_due }} days left)
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Right Sidebar -->
+        <div id="sidebar" class="sidebar-panel w-80 bg-white border-l border-gray-200 lg:block">
+            <div class="p-6">
+                <!-- Sidebar Tabs -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button id="ai-tab" class="tab-button flex-1 py-2 px-1 text-center border-b-2 border-blue-500 text-blue-600 font-medium">
+                        AI Assistant
+                    </button>
+                    <button id="comments-tab" class="tab-button flex-1 py-2 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                        Comments
+                    </button>
+                    <button id="revisions-tab" class="tab-button flex-1 py-2 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                        Revisions
+                    </button>
+                    <button id="outline-tab" class="tab-button flex-1 py-2 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                        Outline
+                    </button>
+                </div>
+                
+                <!-- AI Assistant Panel -->
+                <div id="ai-panel" class="tab-content">
+                    <div class="space-y-4">
+                        <!-- AI Enhancement Tools -->
+                        <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
+                            <h3 class="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                                <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                                AI Enhancement Tools
+                            </h3>
+                            
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="ai-improve" class="ai-action-btn bg-blue-600 text-white px-3 py-2 rounded text-xs font-medium hover:bg-blue-700 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    Improve
+                                </button>
+                                <button id="ai-expand" class="ai-action-btn bg-green-600 text-white px-3 py-2 rounded text-xs font-medium hover:bg-green-700 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                    </svg>
+                                    Expand
+                                </button>
+                                <button id="ai-clarify" class="ai-action-btn bg-yellow-600 text-white px-3 py-2 rounded text-xs font-medium hover:bg-yellow-700 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    Clarify
+                                </button>
+                                <button id="ai-strengthen" class="ai-action-btn bg-purple-600 text-white px-3 py-2 rounded text-xs font-medium hover:bg-purple-700 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                                    </svg>
+                                    Strengthen
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Analysis Tools -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                                <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                Analysis & Suggestions
+                            </h3>
+                            
+                            <div class="space-y-2">
+                                <button id="ai-compliance" class="w-full bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded text-xs hover:bg-gray-50 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                    </svg>
+                                    Check Compliance
+                                </button>
+                                <button id="ai-suggestions" class="w-full bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded text-xs hover:bg-gray-50 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                    </svg>
+                                    Get Suggestions
+                                </button>
+                                <button id="ai-outline" class="w-full bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded text-xs hover:bg-gray-50 transition-colors">
+                                    <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                                    </svg>
+                                    Generate Outline
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Results Area -->
+                        <div id="ai-results" class="hidden">
+                            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-900">AI Results</h4>
+                                    <button id="close-ai-results" class="text-gray-400 hover:text-gray-600">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div id="ai-results-content" class="text-sm text-gray-700">
+                                    <!-- AI results will be displayed here -->
+                                </div>
+                                <div id="ai-actions" class="mt-3 flex space-x-2 hidden">
+                                    <button id="apply-ai-result" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                        Apply Changes
+                                    </button>
+                                    <button id="reject-ai-result" class="bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs hover:bg-gray-400">
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Loading Indicator -->
+                        <div id="ai-loading" class="hidden">
+                            <div class="flex items-center justify-center p-4">
+                                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                <span class="ml-2 text-sm text-gray-600">AI is thinking...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Comments Panel -->
+                <div id="comments-panel" class="tab-content hidden">
+                    <div class="space-y-4">
+                        <!-- Add Comment -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <textarea id="new-comment" placeholder="Add a comment..." 
+                                    class="w-full border-0 bg-transparent resize-none focus:ring-0 text-sm"
+                                    rows="2"></textarea>
+                            <div class="flex justify-end mt-2">
+                                <button id="add-comment" class="bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700">
+                                    Comment
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Comments List -->
+                        <div id="comments-list" class="space-y-3">
+                            <!-- Comments will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Revisions Panel -->
+                <div id="revisions-panel" class="tab-content hidden">
+                    <div class="space-y-3">
+                        <!-- Version History -->
+                        <div class="revision-item p-3 rounded-lg border border-gray-200 cursor-pointer">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-sm font-medium text-gray-900">Current Version</span>
+                                <span class="text-xs text-gray-500">Just now</span>
+                            </div>
+                            <p class="text-xs text-gray-600">Auto-saved draft</p>
+                        </div>
+                        
+                        <!-- Previous versions would be listed here -->
+                    </div>
+                </div>
+                
+                <!-- Outline Panel -->
+                <div id="outline-panel" class="tab-content hidden">
+                    <div class="space-y-2">
+                        <!-- Document outline will be generated here -->
+                        <div class="text-sm text-gray-500 italic">Outline will be generated from headings in your content</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Toolbar -->
+    <div class="floating-toolbar rounded-lg shadow-lg p-2 hidden" id="floating-toolbar">
+        <div class="flex items-center space-x-2">
+            <!-- Status Update -->
+            <select id="status-update" class="text-sm border-0 bg-transparent focus:ring-0">
+                <option value="not_started" {% if section.status == 'not_started' %}selected{% endif %}>Not Started</option>
+                <option value="in_progress" {% if section.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="draft_complete" {% if section.status == 'draft_complete' %}selected{% endif %}>Draft Complete</option>
+                <option value="under_review" {% if section.status == 'under_review' %}selected{% endif %}>Under Review</option>
+                <option value="revision_needed" {% if section.status == 'revision_needed' %}selected{% endif %}>Revision Needed</option>
+                <option value="approved" {% if section.status == 'approved' %}selected{% endif %}>Approved</option>
+                <option value="final" {% if section.status == 'final' %}selected{% endif %}>Final</option>
+            </select>
+            
+            <div class="w-px h-6 bg-gray-300"></div>
+            
+            <!-- Quick Actions -->
+            <button id="request-review" class="text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded">
+                Request Review
+            </button>
+            
+            <button id="export-section" class="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 rounded">
+                Export
+            </button>
+        </div>
+    </div>
+    
+    <!-- Word Count Indicator -->
+    <div class="word-count-indicator bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+        <div class="text-center">
+            <div id="live-word-count" class="text-lg font-semibold text-gray-900">0</div>
+            <div class="text-xs text-gray-500">words</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Quill Editor JS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<script>
+// Initialize Quill Editor
+const toolbarOptions = [
+    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+    [{ 'font': [] }],
+    [{ 'size': ['small', false, 'large', 'huge'] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'color': [] }, { 'background': [] }],
+    [{ 'script': 'sub'}, { 'script': 'super' }],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    [{ 'indent': '-1'}, { 'indent': '+1' }],
+    [{ 'align': [] }],
+    ['blockquote', 'code-block'],
+    ['link', 'image', 'video'],
+    ['clean']
+];
+
+const quill = new Quill('#editor', {
+    theme: 'snow',
+    placeholder: 'Start writing your section content...',
+    modules: {
+        toolbar: {
+            container: toolbarOptions,
+            handlers: {
+                // Custom handlers can be added here
+            }
+        },
+        history: {
+            delay: 2000,
+            maxStack: 500,
+            userOnly: true
+        }
+    }
+});
+
+// Auto-save functionality
+let saveTimeout;
+let lastSaved = Date.now();
+
+function autoSave() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        saveSection();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+}
+
+function saveSection() {
+    const content = quill.root.innerHTML;
+    const wordCount = countWords(quill.getText());
+    
+    // Show saving indicator
+    showAutosaveIndicator('saving');
+    
+    // Send AJAX request to save
+    fetch(`/teams/{{ team.id }}/sections/{{ section.id }}/save/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            content: content,
+            word_count: wordCount
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAutosaveIndicator('saved');
+            updateWordCount(wordCount);
+            lastSaved = Date.now();
+        } else {
+            showAutosaveIndicator('error');
+        }
+    })
+    .catch(error => {
+        console.error('Save error:', error);
+        showAutosaveIndicator('error');
+    });
+}
+
+function showAutosaveIndicator(status) {
+    const indicator = document.getElementById('autosave-indicator');
+    indicator.className = 'autosave-indicator';
+    
+    if (status === 'saving') {
+        indicator.innerHTML = '<span class="text-xs text-blue-600 font-medium">Saving...</span>';
+        indicator.style.opacity = '1';
+    } else if (status === 'saved') {
+        indicator.innerHTML = '<span class="text-xs text-green-600 font-medium"><svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Saved</span>';
+        indicator.style.opacity = '1';
+        setTimeout(() => {
+            indicator.style.opacity = '0';
+        }, 2000);
+    } else if (status === 'error') {
+        indicator.innerHTML = '<span class="text-xs text-red-600 font-medium">Save failed</span>';
+        indicator.style.opacity = '1';
+        setTimeout(() => {
+            indicator.style.opacity = '0';
+        }, 3000);
+    }
+}
+
+// Word count functionality
+function countWords(text) {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+}
+
+function updateWordCount(count) {
+    document.getElementById('live-word-count').textContent = count;
+    
+    {% if section.word_count_target %}
+        const target = {{ section.word_count_target }};
+        const percentage = Math.min((count / target) * 100, 100);
+        
+        document.getElementById('current-word-count').textContent = `${count}/${target}`;
+        document.getElementById('word-count-bar').style.width = `${percentage}%`;
+        document.getElementById('word-count-percentage').textContent = Math.round(percentage);
+    {% endif %}
+}
+
+// Editor event listeners
+quill.on('text-change', function(delta, oldDelta, source) {
+    if (source === 'user') {
+        autoSave();
+        updateWordCount(countWords(quill.getText()));
+        updateOutline();
+    }
+});
+
+// Sidebar functionality
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('border-blue-500', 'text-blue-600');
+        button.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Show selected tab
+    document.getElementById(`${tabName}-tab`).classList.add('border-blue-500', 'text-blue-600');
+    document.getElementById(`${tabName}-panel`).classList.remove('hidden');
+}
+
+// Tab event listeners
+document.getElementById('ai-tab').addEventListener('click', () => switchTab('ai'));
+document.getElementById('comments-tab').addEventListener('click', () => switchTab('comments'));
+document.getElementById('revisions-tab').addEventListener('click', () => switchTab('revisions'));
+document.getElementById('outline-tab').addEventListener('click', () => switchTab('outline'));
+
+// Mobile sidebar toggle
+document.getElementById('toggle-sidebar').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+
+// Save button
+document.getElementById('save-section').addEventListener('click', function() {
+    saveSection();
+});
+
+// Update outline
+function updateOutline() {
+    const outline = document.getElementById('outline-panel');
+    const content = quill.root;
+    const headings = content.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    
+    if (headings.length === 0) {
+        outline.innerHTML = '<div class="text-sm text-gray-500 italic">No headings found. Add headings to generate an outline.</div>';
+        return;
+    }
+    
+    let outlineHTML = '<div class="space-y-2">';
+    headings.forEach((heading, index) => {
+        const level = parseInt(heading.tagName.substring(1));
+        const indent = (level - 1) * 12;
+        outlineHTML += `
+            <div class="text-sm cursor-pointer hover:text-blue-600 transition-colors" 
+                 style="margin-left: ${indent}px"
+                 onclick="scrollToHeading(${index})">
+                ${heading.textContent}
+            </div>
+        `;
+    });
+    outlineHTML += '</div>';
+    
+    outline.innerHTML = outlineHTML;
+}
+
+function scrollToHeading(index) {
+    const headings = quill.root.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    if (headings[index]) {
+        headings[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+// Utility function
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateWordCount(countWords(quill.getText()));
+    updateOutline();
+    
+    // Auto-save every 30 seconds as backup
+    setInterval(() => {
+        if (Date.now() - lastSaved > 30000) {
+            saveSection();
+        }
+    }, 30000);
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + S to save
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveSection();
+    }
+    
+    // Ctrl/Cmd + / to toggle sidebar
+    if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+});
+
+// Prevent data loss
+window.addEventListener('beforeunload', function(e) {
+    if (Date.now() - lastSaved > 5000) { // 5 seconds since last save
+        e.preventDefault();
+        e.returnValue = '';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+    }
+});
+
+// AI Enhancement Functions
+let currentAIResult = null;
+
+function callAI(endpoint, data = {}) {
+    showAILoading();
+    
+    const requestData = {
+        content: quill.root.innerHTML,
+        word_count: countWords(quill.getText()),
+        ...data
+    };
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideAILoading();
+        if (data.error) {
+            showAIError(data.error);
+        } else {
+            showAIResults(data);
+        }
+    })
+    .catch(error => {
+        hideAILoading();
+        showAIError('AI service temporarily unavailable');
+        console.error('AI Error:', error);
+    });
+}
+
+function showAILoading() {
+    document.getElementById('ai-loading').classList.remove('hidden');
+    document.getElementById('ai-results').classList.add('hidden');
+}
+
+function hideAILoading() {
+    document.getElementById('ai-loading').classList.add('hidden');
+}
+
+function showAIResults(data) {
+    currentAIResult = data;
+    const resultsDiv = document.getElementById('ai-results');
+    const contentDiv = document.getElementById('ai-results-content');
+    const actionsDiv = document.getElementById('ai-actions');
+    
+    // Display results based on type
+    if (data.enhanced_content || data.expanded_content) {
+        // Content enhancement results
+        const enhancedContent = data.enhanced_content || data.expanded_content;
+        contentDiv.innerHTML = `
+            <div class="mb-3">
+                <h5 class="font-medium text-gray-900 mb-2">Enhanced Content:</h5>
+                <div class="bg-green-50 border border-green-200 rounded p-3 max-h-40 overflow-y-auto">
+                    ${enhancedContent}
+                </div>
+            </div>
+        `;
+        actionsDiv.classList.remove('hidden');
+    } else if (data.suggestions) {
+        // Suggestions results
+        let suggestionsHtml = '<h5 class="font-medium text-gray-900 mb-2">AI Suggestions:</h5><ul class="space-y-2">';
+        data.suggestions.forEach(suggestion => {
+            suggestionsHtml += `
+                <li class="flex items-start space-x-2">
+                    <span class="inline-block w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></span>
+                    <span class="text-sm">${suggestion.text || suggestion}</span>
+                </li>
+            `;
+        });
+        suggestionsHtml += '</ul>';
+        contentDiv.innerHTML = suggestionsHtml;
+        actionsDiv.classList.add('hidden');
+    } else if (data.compliance_score !== undefined) {
+        // Compliance results
+        const scoreColor = data.compliance_score >= 80 ? 'green' : data.compliance_score >= 60 ? 'yellow' : 'red';
+        let complianceHtml = `
+            <h5 class="font-medium text-gray-900 mb-2">Compliance Analysis:</h5>
+            <div class="mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium">Compliance Score:</span>
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-${scoreColor}-100 text-${scoreColor}-800">
+                        ${data.compliance_score}%
+                    </span>
+                </div>
+            </div>
+        `;
+        
+        if (data.issues && data.issues.length > 0) {
+            complianceHtml += '<h6 class="font-medium text-red-700 mb-1">Issues:</h6><ul class="mb-3 space-y-1">';
+            data.issues.forEach(issue => {
+                complianceHtml += `<li class="text-sm text-red-600">• ${issue}</li>`;
+            });
+            complianceHtml += '</ul>';
+        }
+        
+        if (data.recommendations && data.recommendations.length > 0) {
+            complianceHtml += '<h6 class="font-medium text-blue-700 mb-1">Recommendations:</h6><ul class="space-y-1">';
+            data.recommendations.forEach(rec => {
+                complianceHtml += `<li class="text-sm text-blue-600">• ${rec}</li>`;
+            });
+            complianceHtml += '</ul>';
+        }
+        
+        contentDiv.innerHTML = complianceHtml;
+        actionsDiv.classList.add('hidden');
+    } else if (data.outline) {
+        // Outline results
+        let outlineHtml = '<h5 class="font-medium text-gray-900 mb-2">Generated Outline:</h5>';
+        if (typeof data.outline === 'object') {
+            outlineHtml += '<div class="space-y-2">';
+            // Handle structured outline
+            Object.keys(data.outline).forEach(key => {
+                outlineHtml += `<div class="text-sm"><strong>${key}:</strong> ${data.outline[key]}</div>`;
+            });
+            outlineHtml += '</div>';
+        } else {
+            outlineHtml += `<div class="text-sm whitespace-pre-line">${data.outline_text || data.outline}</div>`;
+        }
+        contentDiv.innerHTML = outlineHtml;
+        actionsDiv.classList.add('hidden');
+    } else {
+        // Generic results
+        contentDiv.innerHTML = `<div class="text-sm">${data.details || 'AI analysis complete'}</div>`;
+        actionsDiv.classList.add('hidden');
+    }
+    
+    resultsDiv.classList.remove('hidden');
+}
+
+function showAIError(message) {
+    const resultsDiv = document.getElementById('ai-results');
+    const contentDiv = document.getElementById('ai-results-content');
+    const actionsDiv = document.getElementById('ai-actions');
+    
+    contentDiv.innerHTML = `
+        <div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
+            <strong>Error:</strong> ${message}
+        </div>
+    `;
+    actionsDiv.classList.add('hidden');
+    resultsDiv.classList.remove('hidden');
+}
+
+// AI Action Event Listeners
+document.getElementById('ai-improve').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/enhance/`, { type: 'improve' });
+});
+
+document.getElementById('ai-expand').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/expand/`);
+});
+
+document.getElementById('ai-clarify').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/enhance/`, { type: 'clarify' });
+});
+
+document.getElementById('ai-strengthen').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/enhance/`, { type: 'strengthen' });
+});
+
+document.getElementById('ai-compliance').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/compliance/`);
+});
+
+document.getElementById('ai-suggestions').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/suggestions/`);
+});
+
+document.getElementById('ai-outline').addEventListener('click', () => {
+    callAI(`/teams/{{ team.id }}/sections/{{ section.id }}/ai/outline/`);
+});
+
+// AI Results Actions
+document.getElementById('apply-ai-result').addEventListener('click', () => {
+    if (currentAIResult && (currentAIResult.enhanced_content || currentAIResult.expanded_content)) {
+        const newContent = currentAIResult.enhanced_content || currentAIResult.expanded_content;
+        quill.root.innerHTML = newContent;
+        updateWordCount(countWords(quill.getText()));
+        autoSave();
+        document.getElementById('ai-results').classList.add('hidden');
+        currentAIResult = null;
+    }
+});
+
+document.getElementById('reject-ai-result').addEventListener('click', () => {
+    document.getElementById('ai-results').classList.add('hidden');
+    currentAIResult = null;
+});
+
+document.getElementById('close-ai-results').addEventListener('click', () => {
+    document.getElementById('ai-results').classList.add('hidden');
+    currentAIResult = null;
+});
+</script>
+{% endblock %}

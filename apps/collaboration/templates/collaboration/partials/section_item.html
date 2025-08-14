@@ -1,0 +1,131 @@
+<div class="section-card status-{{ section.status }} {% if section.is_overdue %}overdue{% endif %} bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all"
+     data-section-id="{{ section.id }}">
+    
+    <!-- Section Header -->
+    <div class="p-6 border-b border-gray-100">
+        <div class="flex items-start justify-between mb-3">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                        {{ section.section_number }}
+                    </span>
+                    {% if section.priority %}
+                        <div class="priority-indicator bg-{{ section.priority == 'critical' and 'red' or section.priority == 'high' and 'orange' or section.priority == 'medium' and 'yellow' or 'green' }}-500"></div>
+                    {% endif %}
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 truncate">{{ section.title }}</h3>
+                {% if section.description %}
+                    <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ section.description }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Status Badge -->
+            <span class="status-badge {% if section.status == 'approved' %}bg-green-100 text-green-800
+                {% elif section.status == 'under_review' %}bg-yellow-100 text-yellow-800
+                {% elif section.status == 'in_progress' %}bg-blue-100 text-blue-800
+                {% elif section.status == 'draft_complete' %}bg-purple-100 text-purple-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ section.get_status_display }}
+            </span>
+        </div>
+        
+        <!-- Assignment and Due Date -->
+        <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center space-x-2">
+                {% if section.assigned_to %}
+                    <div class="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                        <span class="text-xs font-medium text-white">
+                            {{ section.assigned_to.first_name|first }}{{ section.assigned_to.last_name|first }}
+                        </span>
+                    </div>
+                    <span class="text-gray-700 font-medium">{{ section.assigned_to.get_full_name }}</span>
+                {% else %}
+                    <span class="text-gray-500 italic">Unassigned</span>
+                {% endif %}
+            </div>
+            
+            {% if section.due_date %}
+                <div class="text-right">
+                    <div class="text-xs text-gray-500">Due</div>
+                    <div class="font-medium {% if section.is_overdue %}text-red-600{% elif section.days_until_due <= 3 %}text-yellow-600{% else %}text-gray-700{% endif %}">
+                        {{ section.due_date|date:"M j" }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Progress Section -->
+    <div class="p-6 bg-gray-50">
+        <!-- Word Count Progress -->
+        {% if section.word_count_target %}
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-gray-700">Word Count</span>
+                    <span class="text-sm text-gray-600">
+                        {{ section.word_count_current }}/{{ section.word_count_target }}
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="word-count-bar bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full" 
+                         style="width: {{ section.word_count_progress }}%"></div>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                    {{ section.word_count_progress|floatformat:0 }}% complete
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Task Progress -->
+        {% with section_tasks=section.tasks.all completed_tasks=section.tasks.filter:status='completed' %}
+            {% if section_tasks %}
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">Tasks</span>
+                        <span class="text-sm text-gray-600">
+                            {{ completed_tasks.count }}/{{ section_tasks.count }}
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full" 
+                             style="width: {% widthratio completed_tasks.count section_tasks.count 100 %}%"></div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Action Buttons -->
+        <div class="flex items-center space-x-2">
+            <button onclick="openSectionEditor('{{ section.id }}')"
+                    class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Edit
+            </button>
+            
+            <button class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Section options">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Reviews and Comments -->
+    {% if section.reviewers.exists %}
+        <div class="px-6 py-3 bg-yellow-50 border-t border-yellow-100">
+            <div class="flex items-center space-x-2">
+                <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                <span class="text-sm text-yellow-800 font-medium">Under Review</span>
+                <span class="text-xs text-yellow-600">
+                    {{ section.reviewers.count }} reviewer{{ section.reviewers.count|pluralize }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+</div>

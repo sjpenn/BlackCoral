@@ -21,6 +21,9 @@ from .models import (
 )
 from apps.opportunities.models import Opportunity
 from apps.notifications.services import notification_service
+from .ai_services import section_ai_enhancer
+from .workflow_services import workflow_service, review_service, approval_service
+from .models import SectionReview, SectionApproval, WorkflowTemplate
 
 User = get_user_model()
 
@@ -572,6 +575,69 @@ def team_milestones(request, team_id):
 
 
 @login_required
+def section_editor(request, team_id, section_id):
+    """Rich text section editor with collaboration features"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        messages.error(request, "You don't have access to this team.")
+        return redirect('collaboration:team_list')
+    
+    context = {
+        'team': team,
+        'section': section,
+    }
+    
+    return render(request, 'collaboration/section_editor.html', context)
+
+
+@login_required
+@require_http_methods(['POST'])
+def save_section_content(request, team_id, section_id):
+    """Save section content via AJAX"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', '')
+        word_count = data.get('word_count', 0)
+        
+        # Update section content
+        section.content = content
+        section.word_count_current = word_count
+        section.last_modified_by = request.user
+        section.last_modified_at = timezone.now()
+        
+        # Update status if this is the first content
+        if section.status == 'not_started' and content.strip():
+            section.status = 'in_progress'
+        
+        section.save()
+        
+        # Create revision entry (simplified)
+        # In a full implementation, you'd save revision history here
+        
+        return JsonResponse({
+            'success': True,
+            'word_count': word_count,
+            'last_saved': timezone.now().isoformat(),
+            'status': section.status
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def team_analytics(request, team_id):
     """Team analytics and progress tracking"""
     team = get_object_or_404(ProposalTeam, id=team_id)
@@ -668,3 +734,168 @@ def task_quick_actions_htmx(request, team_id, task_id):
     
     context = {'task': task, 'team': team}
     return render(request, 'collaboration/partials/task_quick_actions.html', context)
+
+
+# AI Enhancement endpoints
+
+@login_required
+@require_http_methods(['POST'])
+def ai_enhance_section(request, team_id, section_id):
+    """AI-powered section enhancement"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        enhancement_type = data.get('type', 'improve')
+        content = data.get('content', section.content)
+        
+        # Get AI enhancement
+        result = section_ai_enhancer.enhance_content(
+            content=content,
+            section_title=section.title,
+            requirements=section.requirements,
+            enhancement_type=enhancement_type
+        )
+        
+        if 'error' in result:
+            return JsonResponse(result, status=400)
+        
+        return JsonResponse(result)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_generate_outline(request, team_id, section_id):
+    """Generate section outline using AI"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        result = section_ai_enhancer.generate_outline(
+            section_title=section.title,
+            requirements=section.requirements,
+            word_count_target=section.word_count_target
+        )
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_check_compliance(request, team_id, section_id):
+    """AI compliance check for section"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', section.content)
+        
+        result = section_ai_enhancer.check_compliance(
+            content=content,
+            section_title=section.title,
+            requirements=section.requirements
+        )
+        
+        return JsonResponse(result)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_suggest_improvements(request, team_id, section_id):
+    """Get AI improvement suggestions"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', section.content)
+        word_count = data.get('word_count', 0)
+        
+        result = section_ai_enhancer.suggest_improvements(
+            content=content,
+            section_title=section.title,
+            word_count_current=word_count,
+            word_count_target=section.word_count_target
+        )
+        
+        return JsonResponse(result)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_expand_content(request, team_id, section_id):
+    """AI content expansion"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    section = get_object_or_404(ProposalSection, id=section_id, team=team)
+    
+    # Check access
+    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', section.content)
+        focus_area = data.get('focus_area', '')
+        
+        result = section_ai_enhancer.expand_content(
+            content=content,
+            section_title=section.title,
+            target_expansion=focus_area
+        )
+        
+        return JsonResponse(result)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def team_documents(request, team_id):
+    """Team documents management view - redirect to documents app"""
+    team = get_object_or_404(ProposalTeam, id=team_id)
+    
+    # Check permissions
+    if not team.can_user_access(request.user):
+        messages.error(request, "You don't have permission to access this team.")
+        return redirect('collaboration:team_list')
+    
+    # Redirect to documents assembly list
+    return redirect('documents:assembly_list', team_id=team_id)

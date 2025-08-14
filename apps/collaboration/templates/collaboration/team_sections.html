@@ -1,0 +1,645 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Proposal Sections - {{ team.name }} - BLACK CORAL{% endblock %}
+
+{% block extra_css %}
+<style>
+.section-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid #e5e7eb;
+}
+
+.section-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.section-card.status-not-started {
+    border-left-color: #6b7280;
+}
+
+.section-card.status-in-progress {
+    border-left-color: #3b82f6;
+}
+
+.section-card.status-draft-complete {
+    border-left-color: #8b5cf6;
+}
+
+.section-card.status-under-review {
+    border-left-color: #f59e0b;
+}
+
+.section-card.status-approved {
+    border-left-color: #10b981;
+}
+
+.section-card.status-final {
+    border-left-color: #059669;
+}
+
+.section-card.overdue {
+    background: linear-gradient(135deg, #fef2f2 0%, #ffffff 50%);
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.6s ease;
+}
+
+.word-count-bar {
+    transition: width 0.8s ease-in-out;
+}
+
+.floating-action {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 50;
+}
+
+.section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .section-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .floating-action {
+        bottom: 1rem;
+        right: 1rem;
+    }
+}
+
+.create-section-modal {
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.priority-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.section-preview {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.section-preview.expanded {
+    max-height: 200px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <div class="mb-8">
+            <nav class="text-sm breadcrumbs mb-4">
+                <a href="{% url 'collaboration:team_list' %}" class="text-blue-600 hover:text-blue-800 font-medium">Teams</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <a href="{% url 'collaboration:team_detail' team.id %}" class="text-blue-600 hover:text-blue-800 font-medium">{{ team.name }}</a>
+                <span class="mx-2 text-gray-400">/</span>
+                <span class="text-gray-700 font-medium">Proposal Sections</span>
+            </nav>
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Proposal Sections</h1>
+                    <p class="text-gray-600 mt-2">Manage and write proposal sections collaboratively</p>
+                    
+                    <!-- Progress Overview -->
+                    <div class="flex items-center space-x-6 mt-4">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+                            <span class="text-sm text-gray-600">
+                                {{ sections_with_stats|length|add:sections_with_stats|length }} sections total
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
+                            <span class="text-sm text-gray-600">
+                                {% for stat in sections_with_stats %}{% if stat.section.status == 'approved' %}{{ forloop.counter0|add:1 }}{% endif %}{% endfor %} approved
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-yellow-500 rounded-full"></div>
+                            <span class="text-sm text-gray-600">
+                                {% for stat in sections_with_stats %}{% if stat.section.status == 'in_progress' %}{{ forloop.counter0|add:1 }}{% endif %}{% endfor %} in progress
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <!-- View options -->
+                    <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                        <button id="grid-view" class="px-3 py-2 text-sm rounded-md bg-blue-600 text-white font-medium">
+                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                            </svg>
+                            Grid
+                        </button>
+                        <button id="timeline-view" class="px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100">
+                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Timeline
+                        </button>
+                    </div>
+                    
+                    <!-- Export options -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" 
+                                class="bg-white text-gray-700 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Export
+                        </button>
+                        
+                        <div x-show="open" @click.away="open = false" x-cloak
+                             class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20">
+                            <div class="py-1">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as PDF</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as Word</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as HTML</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Master Document</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sections Grid View -->
+        <div id="sections-grid" class="section-grid">
+            {% for section_stat in sections_with_stats %}
+                {% with section=section_stat.section %}
+                    <div class="section-card status-{{ section.status }} {% if section.is_overdue %}overdue{% endif %} bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all"
+                         data-section-id="{{ section.id }}">
+                        
+                        <!-- Section Header -->
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                            {{ section.section_number }}
+                                        </span>
+                                        {% if section.priority %}
+                                            <div class="priority-indicator bg-{{ section.priority == 'high' and 'red' or section.priority == 'medium' and 'yellow' or 'green' }}-500"></div>
+                                        {% endif %}
+                                    </div>
+                                    <h3 class="text-lg font-semibold text-gray-900 truncate">{{ section.title }}</h3>
+                                    {% if section.description %}
+                                        <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ section.description }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Status Badge -->
+                                <span class="status-badge {% if section.status == 'approved' %}bg-green-100 text-green-800
+                                    {% elif section.status == 'under_review' %}bg-yellow-100 text-yellow-800
+                                    {% elif section.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                    {% elif section.status == 'draft_complete' %}bg-purple-100 text-purple-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ section.get_status_display }}
+                                </span>
+                            </div>
+                            
+                            <!-- Assignment and Due Date -->
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center space-x-2">
+                                    {% if section.assigned_to %}
+                                        <div class="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                                            <span class="text-xs font-medium text-white">
+                                                {{ section.assigned_to.first_name|first }}{{ section.assigned_to.last_name|first }}
+                                            </span>
+                                        </div>
+                                        <span class="text-gray-700 font-medium">{{ section.assigned_to.get_full_name }}</span>
+                                    {% else %}
+                                        <span class="text-gray-500 italic">Unassigned</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if section.due_date %}
+                                    <div class="text-right">
+                                        <div class="text-xs text-gray-500">Due</div>
+                                        <div class="font-medium {% if section.is_overdue %}text-red-600{% elif section.days_until_due <= 3 %}text-yellow-600{% else %}text-gray-700{% endif %}">
+                                            {{ section.due_date|date:"M j" }}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Section -->
+                        <div class="p-6 bg-gray-50">
+                            <!-- Word Count Progress -->
+                            {% if section.word_count_target %}
+                                <div class="mb-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Word Count</span>
+                                        <span class="text-sm text-gray-600">
+                                            {{ section.word_count_current }}/{{ section.word_count_target }}
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="word-count-bar bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full" 
+                                             style="width: {{ section.word_count_progress }}%"></div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {{ section.word_count_progress|floatformat:0 }}% complete
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Task Progress -->
+                            {% if section_stat.total_tasks > 0 %}
+                                <div class="mb-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Tasks</span>
+                                        <span class="text-sm text-gray-600">
+                                            {{ section_stat.completed_tasks }}/{{ section_stat.total_tasks }}
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full" 
+                                             style="width: {{ section_stat.task_progress }}%"></div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex items-center space-x-2">
+                                <button onclick="openSectionEditor('{{ section.id }}')"
+                                        class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                    Edit
+                                </button>
+                                
+                                <button class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                                        title="Section options">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Reviews and Comments -->
+                        {% if section.reviewers.exists %}
+                            <div class="px-6 py-3 bg-yellow-50 border-t border-yellow-100">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    <span class="text-sm text-yellow-800 font-medium">Under Review</span>
+                                    <span class="text-xs text-yellow-600">
+                                        {{ section.reviewers.count }} reviewer{{ section.reviewers.count|pluralize }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endwith %}
+            {% empty %}
+                <!-- Empty State -->
+                <div class="col-span-full">
+                    <div class="text-center py-16">
+                        <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h3 class="mt-4 text-lg font-medium text-gray-900">No sections yet</h3>
+                        <p class="mt-2 text-gray-500">Get started by creating your first proposal section.</p>
+                        <div class="mt-6">
+                            <button onclick="openCreateSectionModal()"
+                                    class="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                <svg class="-ml-1 mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Create Section
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Timeline View (Hidden by default) -->
+        <div id="sections-timeline" class="hidden">
+            <div class="space-y-8">
+                {% for section_stat in sections_with_stats %}
+                    {% with section=section_stat.section %}
+                        <div class="relative">
+                            <!-- Timeline dot -->
+                            <div class="absolute left-0 top-0 w-4 h-4 rounded-full border-4 border-white shadow-lg 
+                                {% if section.status == 'approved' %}bg-green-500
+                                {% elif section.status == 'under_review' %}bg-yellow-500
+                                {% elif section.status == 'in_progress' %}bg-blue-500
+                                {% else %}bg-gray-400{% endif %}"></div>
+                            
+                            <!-- Timeline content -->
+                            <div class="ml-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">
+                                        {{ section.section_number }} - {{ section.title }}
+                                    </h3>
+                                    <span class="status-badge {% if section.status == 'approved' %}bg-green-100 text-green-800
+                                        {% elif section.status == 'under_review' %}bg-yellow-100 text-yellow-800
+                                        {% elif section.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ section.get_status_display }}
+                                    </span>
+                                </div>
+                                
+                                {% if section.description %}
+                                    <p class="text-gray-600 mb-4">{{ section.description }}</p>
+                                {% endif %}
+                                
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        {% if section.assigned_to %}
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                    <span class="text-xs font-medium text-white">
+                                                        {{ section.assigned_to.first_name|first }}{{ section.assigned_to.last_name|first }}
+                                                    </span>
+                                                </div>
+                                                <span class="text-sm text-gray-700">{{ section.assigned_to.get_full_name }}</span>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if section.due_date %}
+                                            <span class="text-sm text-gray-500">
+                                                Due {{ section.due_date|date:"M j, Y" }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <button onclick="openSectionEditor('{{ section.id }}')"
+                                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                        Edit Section
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Timeline line -->
+                            {% if not forloop.last %}
+                                <div class="absolute left-2 top-4 w-0.5 h-16 bg-gray-200 -z-10"></div>
+                            {% endif %}
+                        </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Action Button -->
+    {% if can_manage %}
+        <button onclick="openCreateSectionModal()" 
+                class="floating-action bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+        </button>
+    {% endif %}
+</div>
+
+<!-- Create Section Modal -->
+<div id="createSectionModal" class="create-section-modal fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="modal-content bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-screen overflow-y-auto">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">Create New Section</h2>
+                <button onclick="closeCreateSectionModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <form hx-post="{% url 'collaboration:create_section' team.id %}" 
+              hx-target="#sections-grid" 
+              hx-swap="beforeend"
+              hx-on::after-request="closeCreateSectionModal(); this.reset();"
+              class="p-6 space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Section Number -->
+                <div>
+                    <label for="section_number" class="block text-sm font-medium text-gray-700 mb-2">
+                        Section Number <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="section_number" name="section_number" required
+                           placeholder="1.1, 2.3.1, etc."
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+                
+                <!-- Priority -->
+                <div>
+                    <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                    <select id="priority" name="priority" 
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Title -->
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                    Section Title <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="title" name="title" required
+                       placeholder="Enter section title..."
+                       class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+            </div>
+            
+            <!-- Description -->
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea id="description" name="description" rows="3"
+                          placeholder="Section requirements and guidelines..."
+                          class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Assign To -->
+                <div>
+                    <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-2">Assign To</label>
+                    <select id="assigned_to" name="assigned_to" 
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select team member</option>
+                        {% for member in team_members %}
+                            <option value="{{ member.id }}">{{ member.get_full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Word Count Target -->
+                <div>
+                    <label for="word_count_target" class="block text-sm font-medium text-gray-700 mb-2">Word Count Target</label>
+                    <input type="number" id="word_count_target" name="word_count_target" min="0"
+                           placeholder="1000"
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+                
+                <!-- Due Date -->
+                <div>
+                    <label for="due_date" class="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <input type="date" id="due_date" name="due_date"
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                <button type="button" onclick="closeCreateSectionModal()"
+                        class="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    Create Section
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// View Toggle
+document.getElementById('grid-view').addEventListener('click', function() {
+    document.getElementById('sections-grid').classList.remove('hidden');
+    document.getElementById('sections-timeline').classList.add('hidden');
+    this.classList.add('bg-blue-600', 'text-white');
+    this.classList.remove('text-gray-700', 'hover:bg-gray-100');
+    document.getElementById('timeline-view').classList.remove('bg-blue-600', 'text-white');
+    document.getElementById('timeline-view').classList.add('text-gray-700', 'hover:bg-gray-100');
+});
+
+document.getElementById('timeline-view').addEventListener('click', function() {
+    document.getElementById('sections-grid').classList.add('hidden');
+    document.getElementById('sections-timeline').classList.remove('hidden');
+    this.classList.add('bg-blue-600', 'text-white');
+    this.classList.remove('text-gray-700', 'hover:bg-gray-100');
+    document.getElementById('grid-view').classList.remove('bg-blue-600', 'text-white');
+    document.getElementById('grid-view').classList.add('text-gray-700', 'hover:bg-gray-100');
+});
+
+// Modal Functions
+function openCreateSectionModal() {
+    document.getElementById('createSectionModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        document.getElementById('section_number').focus();
+    }, 100);
+}
+
+function closeCreateSectionModal() {
+    document.getElementById('createSectionModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+// Section Editor
+function openSectionEditor(sectionId) {
+    // Navigate to section editor
+    window.location.href = `/teams/{{ team.id }}/sections/${sectionId}/edit/`;
+}
+
+// Animate progress bars on load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        document.querySelectorAll('.word-count-bar').forEach(bar => {
+            bar.style.transition = 'width 0.8s ease-in-out';
+        });
+    }, 100);
+});
+
+// Auto-refresh sections every 60 seconds
+setInterval(() => {
+    htmx.ajax('GET', window.location.href, {
+        target: '#sections-grid',
+        swap: 'outerHTML'
+    });
+}, 60000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + N to create new section
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        openCreateSectionModal();
+    }
+    
+    // Escape to close modal
+    if (e.key === 'Escape') {
+        closeCreateSectionModal();
+    }
+});
+
+// Smooth hover effects
+document.querySelectorAll('.section-card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-4px)';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+    });
+});
+</script>
+{% endblock %}

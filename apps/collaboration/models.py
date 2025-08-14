@@ -6,6 +6,7 @@ Proposal teams, workflows, tasks, and real-time communication
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from apps.core.models import BaseModel
 
 User = get_user_model()
@@ -176,8 +177,13 @@ class ProposalSection(BaseModel):
     
     # Content and requirements
     requirements = models.TextField(blank=True, help_text="Section requirements and guidelines")
+    content = models.TextField(blank=True, help_text="Rich text content of the section")
     word_count_target = models.IntegerField(null=True, blank=True)
     word_count_current = models.IntegerField(default=0)
+    
+    # Collaboration tracking
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='last_modified_sections')
+    last_modified_at = models.DateTimeField(null=True, blank=True)
     
     # Deadlines and tracking
     due_date = models.DateTimeField(null=True, blank=True)
@@ -454,4 +460,287 @@ class ProposalMilestone(BaseModel):
         if self.target_date:
             delta = self.target_date.date() - timezone.now().date()
             return delta.days
+        return None
+
+
+class SectionReview(BaseModel):
+    """
+    Section review assignments and tracking
+    """
+    REVIEW_STATUS_CHOICES = [
+        ('assigned', 'Assigned'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    REVIEW_TYPE_CHOICES = [
+        ('technical', 'Technical Review'),
+        ('compliance', 'Compliance Review'),
+        ('editorial', 'Editorial Review'),
+        ('final', 'Final Review'),
+        ('quality', 'Quality Assurance'),
+    ]
+    
+    section = models.ForeignKey(ProposalSection, on_delete=models.CASCADE, related_name='reviews')
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_reviews')
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assigned_reviews_created')
+    
+    review_type = models.CharField(max_length=20, choices=REVIEW_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=REVIEW_STATUS_CHOICES, default='assigned')
+    
+    # Deadlines
+    due_date = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Review details
+    instructions = models.TextField(blank=True, help_text="Specific review instructions")
+    feedback = models.TextField(blank=True, help_text="Reviewer's feedback and comments")
+    recommendation = models.CharField(
+        max_length=20,
+        choices=[
+            ('approve', 'Approve'),
+            ('approve_with_changes', 'Approve with Minor Changes'),
+            ('reject', 'Reject - Major Revision Needed'),
+            ('incomplete', 'Incomplete Review'),
+        ],
+        blank=True
+    )
+    
+    # Ratings (1-5 scale)
+    technical_accuracy = models.IntegerField(null=True, blank=True)
+    clarity_score = models.IntegerField(null=True, blank=True)
+    compliance_score = models.IntegerField(null=True, blank=True)
+    overall_quality = models.IntegerField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['section', 'status']),
+            models.Index(fields=['reviewer', 'status']),
+            models.Index(fields=['due_date']),
+        ]
+        unique_together = ['section', 'reviewer', 'review_type']
+    
+    def __str__(self):
+        return f"{self.get_review_type_display()} - {self.section.title} by {self.reviewer.get_full_name()}"
+    
+    @property
+    def is_overdue(self):
+        """Check if review is overdue"""
+        if self.due_date and self.status not in ['completed', 'cancelled']:
+            return timezone.now() > self.due_date
+        return False
+    
+    @property
+    def average_score(self):
+        """Calculate average rating score"""
+        scores = [s for s in [self.technical_accuracy, self.clarity_score, 
+                             self.compliance_score, self.overall_quality] if s is not None]
+        return sum(scores) / len(scores) if scores else None
+
+
+class SectionApproval(BaseModel):
+    """
+    Section approval workflow tracking
+    """
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('conditional', 'Conditionally Approved'),
+        ('withdrawn', 'Withdrawn'),
+    ]
+    
+    APPROVAL_LEVEL_CHOICES = [
+        ('technical_lead', 'Technical Lead'),
+        ('proposal_manager', 'Proposal Manager'),
+        ('team_lead', 'Team Lead'),
+        ('quality_assurance', 'Quality Assurance'),
+        ('compliance_officer', 'Compliance Officer'),
+        ('final_authority', 'Final Authority'),
+    ]
+    
+    section = models.ForeignKey(ProposalSection, on_delete=models.CASCADE, related_name='approvals')
+    approver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='section_approvals')
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approval_requests')
+    
+    approval_level = models.CharField(max_length=20, choices=APPROVAL_LEVEL_CHOICES)
+    status = models.CharField(max_length=20, choices=APPROVAL_STATUS_CHOICES, default='pending')
+    
+    # Timing
+    requested_at = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    
+    # Approval details
+    comments = models.TextField(blank=True, help_text="Approver's comments or conditions")
+    conditions = models.TextField(blank=True, help_text="Conditions that must be met")
+    priority = models.CharField(
+        max_length=10,
+        choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')],
+        default='medium'
+    )
+    
+    # Version tracking
+    section_version = models.TextField(help_text="Content hash or version identifier")
+    
+    class Meta:
+        ordering = ['-requested_at']
+        indexes = [
+            models.Index(fields=['section', 'status']),
+            models.Index(fields=['approver', 'status']),
+            models.Index(fields=['approval_level']),
+            models.Index(fields=['due_date']),
+        ]
+        unique_together = ['section', 'approval_level']
+    
+    def __str__(self):
+        return f"{self.get_approval_level_display()} approval for {self.section.title}"
+    
+    @property
+    def is_overdue(self):
+        """Check if approval is overdue"""
+        if self.due_date and self.status == 'pending':
+            return timezone.now() > self.due_date
+        return False
+    
+    def approve(self, comments="", conditions=""):
+        """Approve the section"""
+        self.status = 'conditional' if conditions else 'approved'
+        self.comments = comments
+        self.conditions = conditions
+        self.responded_at = timezone.now()
+        self.save()
+        
+        # Update section status if this is the final approval
+        if self.approval_level == 'final_authority' and self.status == 'approved':
+            self.section.status = 'approved'
+            self.section.save()
+    
+    def reject(self, comments=""):
+        """Reject the section"""
+        self.status = 'rejected'
+        self.comments = comments
+        self.responded_at = timezone.now()
+        self.save()
+        
+        # Update section status
+        self.section.status = 'revision_needed'
+        self.section.save()
+
+
+class WorkflowTemplate(BaseModel):
+    """
+    Predefined workflow templates for different section types
+    """
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    section_types = models.JSONField(default=list, help_text="Section types this template applies to")
+    
+    # Workflow configuration
+    required_reviews = models.JSONField(default=list, help_text="Required review types")
+    approval_sequence = models.JSONField(default=list, help_text="Ordered list of approval levels")
+    auto_advance_conditions = models.JSONField(default=dict, help_text="Conditions for auto-advancing")
+    
+    # Timing defaults
+    default_review_duration = models.IntegerField(default=3, help_text="Default review duration in days")
+    default_approval_duration = models.IntegerField(default=2, help_text="Default approval duration in days")
+    
+    # Team and role requirements
+    team = models.ForeignKey(ProposalTeam, on_delete=models.CASCADE, related_name='workflow_templates')
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['team', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} - {self.team.name}"
+    
+    def clean(self):
+        """Validate workflow template"""
+        if self.is_default:
+            # Ensure only one default template per team
+            existing_default = WorkflowTemplate.objects.filter(
+                team=self.team, 
+                is_default=True
+            ).exclude(pk=self.pk)
+            if existing_default.exists():
+                raise ValidationError("Only one default workflow template allowed per team")
+
+
+class SectionWorkflowInstance(BaseModel):
+    """
+    Tracks workflow progress for a specific section
+    """
+    WORKFLOW_STATUS_CHOICES = [
+        ('not_started', 'Not Started'),
+        ('in_review', 'In Review'),
+        ('in_approval', 'In Approval'),
+        ('completed', 'Completed'),
+        ('blocked', 'Blocked'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    section = models.OneToOneField(ProposalSection, on_delete=models.CASCADE, related_name='workflow')
+    template = models.ForeignKey(WorkflowTemplate, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default='not_started')
+    current_step = models.CharField(max_length=50, blank=True)
+    
+    # Progress tracking
+    steps_completed = models.JSONField(default=list)
+    steps_pending = models.JSONField(default=list)
+    
+    # Timing
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Workflow data
+    metadata = models.JSONField(default=dict, help_text="Additional workflow data")
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['current_step']),
+        ]
+    
+    def __str__(self):
+        return f"Workflow for {self.section.title}"
+    
+    @property
+    def progress_percentage(self):
+        """Calculate workflow completion percentage"""
+        total_steps = len(self.steps_completed) + len(self.steps_pending)
+        if total_steps == 0:
+            return 0
+        return (len(self.steps_completed) / total_steps) * 100
+    
+    def advance_workflow(self):
+        """Advance to next workflow step"""
+        if self.steps_pending:
+            next_step = self.steps_pending.pop(0)
+            self.steps_completed.append(self.current_step)
+            self.current_step = next_step
+            
+            if not self.steps_pending:
+                self.status = 'completed'
+                self.completed_at = timezone.now()
+            
+            self.save()
+            return True
+        return False
+    
+    def get_current_requirements(self):
+        """Get requirements for current workflow step"""
+        if self.current_step == 'review':
+            return self.section.reviews.filter(status__in=['assigned', 'in_progress'])
+        elif self.current_step == 'approval':
+            return self.section.approvals.filter(status='pending')
         return None
