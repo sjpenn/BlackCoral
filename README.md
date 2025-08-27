@@ -59,7 +59,7 @@ BLACK CORAL replaces the traditional sequential evaluation-capture-pricing-propo
 
 1. **Clone and setup environment**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/sjpenn/BlackCoral.git
    cd BlackCoral
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -191,6 +191,18 @@ BLACK CORAL includes Agent OS integration for multi-agent workflow orchestration
 - **Submission Agent**: Coordinates proposal assembly
 
 See `.agent-os/README.md` for detailed agent configuration.
+
+## Test Coverage Analysis
+
+Recent comprehensive test coverage analysis reveals:
+
+- **12 Django apps** with 224 test files
+- **7 apps require test coverage**: workflows, agents, compliance, collaboration, core, ai_features, api
+- **731+ test methods** with proper mocking patterns
+- **Excellent fixture setup** with comprehensive test utilities
+- **Priority areas**: workflow orchestration, agent coordination, compliance validation
+
+See our [Test Coverage Improvement Plan](docs/test_coverage_analysis.md) for detailed recommendations.
 
 ## Deployment
 
