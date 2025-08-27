@@ -16,6 +16,24 @@ class User(AbstractUser):
         QA = 'qa', 'Quality Assurance'
         SUBMISSION_AGENT = 'submission_agent', 'Submission Agent'
     
+    # Fix related_name conflicts with default User model
+    groups = models.ManyToManyField(
+        'auth.Group',
+        verbose_name='groups',
+        blank=True,
+        help_text='The groups this user belongs to.',
+        related_name='blackcoral_users',
+        related_query_name='blackcoral_user',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        verbose_name='user permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        related_name='blackcoral_users',
+        related_query_name='blackcoral_user',
+    )
+    
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
@@ -56,7 +74,7 @@ class UserSession(BaseModel):
     """
     Track user sessions for audit and security purposes.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey('authentication.User', on_delete=models.CASCADE)
     session_key = models.CharField(max_length=40)
     ip_address = models.GenericIPAddressField()
     user_agent = models.TextField()
@@ -74,7 +92,7 @@ class UserPreferences(BaseModel):
     """
     User preferences and settings.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
+    user = models.OneToOneField('authentication.User', on_delete=models.CASCADE, related_name='preferences')
     dashboard_layout = models.JSONField(default=dict)
     notification_settings = models.JSONField(default=dict)
     default_filters = models.JSONField(default=dict)

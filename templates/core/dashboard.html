@@ -8,20 +8,20 @@
     <p>Welcome to BLACK CORAL, {{ user.first_name|default:user.username }}!</p>
     
     <!-- Role-specific widgets -->
-    <div class="widgets" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 2rem;">
+    <div class="widgets grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
         
         <!-- Overview Widget -->
-        <div class="widget" style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>System Overview</h3>
-            <p>BLACK CORAL Status: <span style="color: green;">Active</span></p>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">System Overview</h3>
+            <p>BLACK CORAL Status: <span class="text-chart-5 font-medium">Active</span></p>
             <p>Your Role: <strong>{{ user.get_role_display }}</strong></p>
             <p>Last Login: {{ user.last_login|date:"M d, Y H:i" }}</p>
         </div>
 
         {% if user.can_research_opportunities %}
         <!-- Research Widget -->
-        <div class="widget" style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>Opportunities</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">Opportunities</h3>
             <p>New opportunities: <strong>0</strong></p>
             <p>In review: <strong>0</strong></p>
             <a href="{% url 'opportunities:list' %}" class="btn btn-primary">Search Opportunities</a>
@@ -30,18 +30,21 @@
 
         {% if user.can_review_content %}
         <!-- Review Widget -->
-        <div class="widget" style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>Reviews Pending</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">Documents</h3>
             <p>Documents awaiting review: <strong>0</strong></p>
-            <p>Priority items: <strong>0</strong></p>
-            <a href="{% url 'documents:list' %}" class="btn btn-primary">Review Queue</a>
+            <p>Recent uploads: <strong>{{ recent_uploads_count|default:0 }}</strong></p>
+            <div class="flex gap-2 mt-2">
+                <button class="btn btn-primary btn-sm" disabled>Upload (Coming Soon)</button>
+                <button class="btn btn-secondary btn-sm" disabled>Status (Coming Soon)</button>
+            </div>
         </div>
         {% endif %}
 
         {% if user.can_monitor_compliance %}
         <!-- Compliance Widget -->
-        <div class="widget" style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>Compliance Status</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">Compliance Status</h3>
             <p>Active alerts: <strong>0</strong></p>
             <p>Recent violations: <strong>0</strong></p>
             <a href="{% url 'compliance:dashboard' %}" class="btn btn-primary">Compliance Dashboard</a>
@@ -50,8 +53,8 @@
 
         {% if user.can_submit_proposals %}
         <!-- Submission Widget -->
-        <div class="widget" style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>Submissions</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">Submissions</h3>
             <p>Ready for submission: <strong>0</strong></p>
             <p>Pending deadlines: <strong>0</strong></p>
             <a href="#" class="btn btn-primary">Submission Queue</a>
@@ -60,20 +63,29 @@
 
         {% if user.can_manage_users %}
         <!-- Admin Widget -->
-        <div class="widget" style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>Administration</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">Administration</h3>
             <p>Active users: <strong>1</strong></p>
             <p>System health: <strong>Good</strong></p>
             <a href="/admin/" class="btn btn-primary">Admin Panel</a>
         </div>
         {% endif %}
+
+        <!-- AI Agents Widget -->
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-header">AI Agents</h3>
+            <p>Total agents: <strong>23</strong></p>
+            <p>Status: <strong>Ready</strong></p>
+            <a href="{% url 'agents:dashboard' %}" class="btn btn-primary">Agent Dashboard</a>
+        </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="quick-actions" style="margin-top: 2rem;">
         <h3>Quick Actions</h3>
-        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+        <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
             <a href="{% url 'opportunities:list' %}" class="btn btn-primary">New Search</a>
+            <button class="btn btn-primary" disabled>Upload Documents (Coming Soon)</button>
             <a href="{% url 'ai_integration:dashboard' %}" class="btn btn-primary">AI Summary</a>
             <button class="btn btn-primary" onclick="alert('Feature coming in Phase 4')">Create Proposal</button>
         </div>

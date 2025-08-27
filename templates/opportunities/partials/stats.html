@@ -1,3 +1,11 @@
+{% if error %}
+<!-- Error state for stats -->
+<div class="stat-card col-span-full text-center">
+    <div class="text-destructive text-base mb-2">⚠ Stats temporarily unavailable</div>
+    <div class="text-sm text-muted-foreground">Please refresh the page or try again later</div>
+</div>
+{% else %}
+<!-- Normal stats display -->
 <div class="stat-card">
     <div class="stat-number">{{ stats.total_active }}</div>
     <div>Total Active</div>
@@ -14,3 +22,4 @@
     <div class="stat-number">{{ stats.documents_processed }}</div>
     <div>Docs Processed</div>
 </div>
+{% endif %}

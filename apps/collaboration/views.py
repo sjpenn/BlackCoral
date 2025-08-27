@@ -4,12 +4,13 @@ Team management, task assignment, and proposal workflow
 """
 
 import json
+import hashlib
 from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib import messages
 from django.db.models import Q, Count, Avg, Sum
 from django.utils import timezone
@@ -17,7 +18,8 @@ from django.core.paginator import Paginator
 
 from .models import (
     ProposalTeam, TeamMembership, ProposalSection, TaskItem,
-    TeamComment, ProposalMilestone, TimeLog
+    TeamComment, ProposalMilestone, TimeLog, InlineComment,
+    ReviewSession, ReviewParticipant, ReviewTemplate, CommentThread, VersionSnapshot
 )
 from apps.opportunities.models import Opportunity
 from apps.notifications.services import notification_service
@@ -576,7 +578,7 @@ def team_milestones(request, team_id):
 
 @login_required
 def section_editor(request, team_id, section_id):
-    """Rich text section editor with collaboration features"""
+    """Rich text section editor with inline commenting and collaboration features"""
     team = get_object_or_404(ProposalTeam, id=team_id)
     section = get_object_or_404(ProposalSection, id=section_id, team=team)
     
@@ -585,9 +587,31 @@ def section_editor(request, team_id, section_id):
         messages.error(request, "You don't have access to this team.")
         return redirect('collaboration:team_list')
     
+    # Get inline comments for this section
+    inline_comments = section.inline_comments.filter(status='active').select_related(
+        'author', 'assigned_to', 'resolved_by'
+    ).prefetch_related('mentioned_users', 'replies')
+    
+    # Get review sessions
+    review_sessions = section.review_sessions.filter(
+        status__in=['scheduled', 'in_progress']
+    ).select_related('moderator')
+    
+    # Get version history
+    version_snapshots = section.version_snapshots.all()[:10]  # Latest 10 versions
+    
+    # Get available reviewers (team members)
+    available_reviewers = team.members.exclude(id=request.user.id)
+    
     context = {
         'team': team,
         'section': section,
+        'inline_comments': inline_comments,
+        'review_sessions': review_sessions,
+        'version_snapshots': version_snapshots,
+        'available_reviewers': available_reviewers,
+        'can_edit': section.assigned_to == request.user or team.lead == request.user,
+        'current_user': request.user,
     }
     
     return render(request, 'collaboration/section_editor.html', context)
@@ -596,38 +620,82 @@ def section_editor(request, team_id, section_id):
 @login_required
 @require_http_methods(['POST'])
 def save_section_content(request, team_id, section_id):
-    """Save section content via AJAX"""
+    """Save section content with version tracking"""
     team = get_object_or_404(ProposalTeam, id=team_id)
     section = get_object_or_404(ProposalSection, id=section_id, team=team)
     
-    # Check access
-    if not (team.members.filter(id=request.user.id).exists() or team.lead == request.user):
-        return JsonResponse({'error': 'Access denied'}, status=403)
+    # Check edit permissions
+    can_edit = (
+        request.user == section.assigned_to or
+        request.user == team.lead or
+        team.members.filter(id=request.user.id, teammembership__role__in=['writer', 'editor']).exists()
+    )
+    
+    if not can_edit:
+        return JsonResponse({'error': 'Edit permission denied'}, status=403)
     
     try:
         data = json.loads(request.body)
-        content = data.get('content', '')
-        word_count = data.get('word_count', 0)
+        new_content = data.get('content', '')
+        change_summary = data.get('change_summary', '')
         
-        # Update section content
-        section.content = content
-        section.word_count_current = word_count
+        # Check if content actually changed
+        if new_content == section.content:
+            return JsonResponse({'success': True, 'message': 'No changes detected'})
+        
+        # Create version snapshot of current content before updating
+        current_hash = hashlib.sha256(section.content.encode()).hexdigest()
+        new_hash = hashlib.sha256(new_content.encode()).hexdigest()
+        
+        # Get next version number
+        last_version = section.version_snapshots.first()
+        if last_version:
+            version_parts = last_version.version_number.split('.')
+            major, minor = int(version_parts[0]), int(version_parts[1]) if len(version_parts) > 1 else 0
+            if data.get('major_change', False):
+                version_number = f"{major + 1}.0"
+            else:
+                version_number = f"{major}.{minor + 1}"
+        else:
+            version_number = "1.0"
+        
+        # Create version snapshot
+        VersionSnapshot.objects.create(
+            section=section,
+            version_number=version_number,
+            content_hash=new_hash,
+            content=new_content,
+            created_by=request.user,
+            change_summary=change_summary,
+            change_type=data.get('change_type', 'minor_edit'),
+            word_count=len(new_content.split()),
+            character_count=len(new_content),
+        )
+        
+        # Update section
+        section.content = new_content
+        section.word_count_current = len(new_content.split())
         section.last_modified_by = request.user
         section.last_modified_at = timezone.now()
         
         # Update status if this is the first content
-        if section.status == 'not_started' and content.strip():
+        if section.status == 'not_started' and new_content.strip():
             section.status = 'in_progress'
         
         section.save()
         
-        # Create revision entry (simplified)
-        # In a full implementation, you'd save revision history here
+        # Check if any inline comments are now outdated
+        outdated_comments = []
+        for comment in section.inline_comments.filter(status='active'):
+            if comment.check_if_outdated(new_hash):
+                outdated_comments.append(comment.id)
         
         return JsonResponse({
             'success': True,
-            'word_count': word_count,
-            'last_saved': timezone.now().isoformat(),
+            'version_number': version_number,
+            'word_count': section.word_count_current,
+            'outdated_comments': outdated_comments,
+            'last_modified': section.last_modified_at.isoformat(),
             'status': section.status
         })
         
@@ -899,3 +967,364 @@ def team_documents(request, team_id):
     
     # Redirect to documents assembly list
     return redirect('documents:assembly_list', team_id=team_id)
+
+
+# Inline Commenting and Review Views
+
+@login_required
+@require_POST
+def add_inline_comment(request, section_id):
+    """Add an inline comment to a section"""
+    section = get_object_or_404(ProposalSection, id=section_id)
+    
+    # Check access
+    if not section.team.members.filter(id=request.user.id).exists():
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Create content hash for version tracking
+        content_hash = hashlib.sha256(section.content.encode()).hexdigest()
+        
+        # Create inline comment
+        comment = InlineComment.objects.create(
+            section=section,
+            author=request.user,
+            comment_type=data.get('comment_type', 'suggestion'),
+            urgency=data.get('urgency', 'medium'),
+            text_selection=data.get('text_selection', ''),
+            selection_start=int(data.get('selection_start', 0)),
+            selection_end=int(data.get('selection_end', 0)),
+            selection_context=data.get('selection_context', ''),
+            content=data.get('content', ''),
+            suggested_change=data.get('suggested_change', ''),
+            section_version_hash=content_hash,
+        )
+        
+        # Handle mentions
+        mentioned_usernames = data.get('mentioned_users', [])
+        if mentioned_usernames:
+            mentioned_users = section.team.members.filter(
+                username__in=mentioned_usernames
+            )
+            comment.mentioned_users.set(mentioned_users)
+        
+        # Handle assignment
+        if data.get('assigned_to'):
+            try:
+                assigned_user = section.team.members.get(id=data['assigned_to'])
+                comment.assigned_to = assigned_user
+                comment.save()
+            except:
+                pass  # Invalid user ID
+        
+        # Create comment thread
+        thread = CommentThread.objects.create(
+            section=section,
+            inline_comment=comment,
+            title=f"{comment.get_comment_type_display()} on {section.title}"
+        )
+        thread.participants.add(request.user)
+        if comment.assigned_to:
+            thread.participants.add(comment.assigned_to)
+        
+        # Return comment data
+        response_data = {
+            'id': comment.id,
+            'comment_type': comment.get_comment_type_display(),
+            'urgency': comment.get_urgency_display(),
+            'author': comment.author.get_full_name(),
+            'content': comment.content,
+            'suggested_change': comment.suggested_change,
+            'created_at': comment.created_at.isoformat(),
+            'selection_start': comment.selection_start,
+            'selection_end': comment.selection_end,
+            'thread_id': thread.id,
+        }
+        
+        return JsonResponse({'success': True, 'comment': response_data})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def reply_to_comment(request, comment_id):
+    """Reply to an inline comment"""
+    parent_comment = get_object_or_404(InlineComment, id=comment_id)
+    
+    # Check access
+    if not parent_comment.section.team.members.filter(id=request.user.id).exists():
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Create reply comment
+        reply = InlineComment.objects.create(
+            section=parent_comment.section,
+            author=request.user,
+            parent_comment=parent_comment,
+            comment_type='reply',
+            content=data.get('content', ''),
+            section_version_hash=parent_comment.section_version_hash,
+            text_selection=parent_comment.text_selection,
+            selection_start=parent_comment.selection_start,
+            selection_end=parent_comment.selection_end,
+        )
+        
+        # Add to thread
+        if hasattr(parent_comment, 'thread'):
+            thread = parent_comment.thread
+            thread.participants.add(request.user)
+            thread.message_count += 1
+            thread.save()
+        
+        response_data = {
+            'id': reply.id,
+            'author': reply.author.get_full_name(),
+            'content': reply.content,
+            'created_at': reply.created_at.isoformat(),
+            'parent_id': parent_comment.id,
+        }
+        
+        return JsonResponse({'success': True, 'reply': response_data})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def resolve_comment(request, comment_id):
+    """Resolve an inline comment"""
+    comment = get_object_or_404(InlineComment, id=comment_id)
+    
+    # Check permissions
+    can_resolve = (
+        request.user == comment.author or
+        request.user == comment.assigned_to or
+        request.user == comment.section.assigned_to or
+        request.user == comment.section.team.lead
+    )
+    
+    if not can_resolve:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        resolution_note = data.get('resolution_note', '')
+        
+        comment.resolve(request.user, resolution_note)
+        
+        # Resolve associated thread
+        if hasattr(comment, 'thread'):
+            comment.thread.resolve_thread(request.user, resolution_note)
+        
+        return JsonResponse({
+            'success': True,
+            'resolved_at': comment.resolved_at.isoformat(),
+            'resolved_by': comment.resolved_by.get_full_name(),
+            'resolution_note': comment.resolution_note
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def section_comments(request, section_id):
+    """Get all comments for a section (HTMX endpoint)"""
+    section = get_object_or_404(ProposalSection, id=section_id)
+    
+    # Check access
+    if not section.team.members.filter(id=request.user.id).exists():
+        return HttpResponse(status=403)
+    
+    # Get comments with filters
+    status_filter = request.GET.get('status', 'active')
+    comment_type = request.GET.get('type', '')
+    urgency = request.GET.get('urgency', '')
+    
+    comments = section.inline_comments.select_related(
+        'author', 'assigned_to', 'resolved_by'
+    ).prefetch_related('mentioned_users', 'replies')
+    
+    if status_filter != 'all':
+        comments = comments.filter(status=status_filter)
+    if comment_type:
+        comments = comments.filter(comment_type=comment_type)
+    if urgency:
+        comments = comments.filter(urgency=urgency)
+    
+    # Only show parent comments (not replies)
+    comments = comments.filter(parent_comment__isnull=True)
+    
+    context = {
+        'section': section,
+        'comments': comments,
+        'current_user': request.user,
+    }
+    
+    return render(request, 'collaboration/partials/comment_list.html', context)
+
+
+@login_required
+def create_review_session(request, section_id):
+    """Create a new review session"""
+    section = get_object_or_404(ProposalSection, id=section_id)
+    
+    # Check permissions
+    can_create = (
+        request.user == section.team.lead or
+        request.user == section.team.proposal_manager or
+        request.user == section.assigned_to
+    )
+    
+    if not can_create:
+        messages.error(request, "You don't have permission to create review sessions.")
+        return redirect('collaboration:section_editor', team_id=section.team.id, section_id=section_id)
+    
+    if request.method == 'POST':
+        try:
+            # Parse form data
+            session_type = request.POST.get('session_type', 'individual')
+            scheduled_start = datetime.fromisoformat(request.POST.get('scheduled_start'))
+            scheduled_end = datetime.fromisoformat(request.POST.get('scheduled_end'))
+            
+            # Create review session
+            review_session = ReviewSession.objects.create(
+                section=section,
+                session_type=session_type,
+                scheduled_start=scheduled_start,
+                scheduled_end=scheduled_end,
+                objectives=request.POST.get('objectives', ''),
+                moderator=request.user,
+            )
+            
+            # Add reviewers
+            reviewer_ids = request.POST.getlist('reviewers')
+            for reviewer_id in reviewer_ids:
+                try:
+                    reviewer = section.team.members.get(id=reviewer_id)
+                    ReviewParticipant.objects.create(
+                        review_session=review_session,
+                        reviewer=reviewer,
+                        status='invited'
+                    )
+                except:
+                    continue
+            
+            # Set review criteria if provided
+            if request.POST.get('review_criteria'):
+                criteria_list = [
+                    item.strip() for item in request.POST.get('review_criteria').split('\n')
+                    if item.strip()
+                ]
+                review_session.review_criteria = criteria_list
+                review_session.save()
+            
+            messages.success(request, f"Review session created successfully.")
+            return redirect('collaboration:review_session_detail', session_id=review_session.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error creating review session: {str(e)}")
+    
+    # GET request - show form
+    available_reviewers = section.team.members.exclude(id=request.user.id)
+    review_templates = ReviewTemplate.objects.filter(team=section.team, is_active=True)
+    
+    context = {
+        'section': section,
+        'available_reviewers': available_reviewers,
+        'review_templates': review_templates,
+    }
+    
+    return render(request, 'collaboration/create_review_session.html', context)
+
+
+@login_required
+def review_session_detail(request, session_id):
+    """Review session detail and participation view"""
+    review_session = get_object_or_404(ReviewSession, id=session_id)
+    
+    # Check access
+    is_participant = review_session.reviewers.filter(id=request.user.id).exists()
+    is_moderator = request.user == review_session.moderator
+    is_team_member = review_session.section.team.members.filter(id=request.user.id).exists()
+    
+    if not (is_participant or is_moderator or is_team_member):
+        messages.error(request, "You don't have access to this review session.")
+        return redirect('opportunities:list')
+    
+    # Get user's participation record
+    participant = None
+    if is_participant:
+        participant = review_session.participants.get(reviewer=request.user)
+    
+    # Get session comments and discussions
+    comment_threads = review_session.comment_threads.filter(status='active')
+    
+    # Get section content and inline comments for review
+    section = review_session.section
+    inline_comments = section.inline_comments.filter(status='active')
+    
+    context = {
+        'review_session': review_session,
+        'section': section,
+        'participant': participant,
+        'is_moderator': is_moderator,
+        'comment_threads': comment_threads,
+        'inline_comments': inline_comments,
+        'can_moderate': is_moderator,
+        'can_participate': is_participant,
+    }
+    
+    return render(request, 'collaboration/review_session_detail.html', context)
+
+
+@login_required
+def review_dashboard(request):
+    """Dashboard showing user's review assignments and activities"""
+    user = request.user
+    
+    # Get user's review assignments
+    assigned_reviews = SectionReview.objects.filter(
+        reviewer=user,
+        status__in=['assigned', 'in_progress']
+    ).select_related('section', 'section__team').order_by('due_date')
+    
+    # Get review sessions user is involved in
+    review_sessions = ReviewSession.objects.filter(
+        Q(reviewers=user) | Q(moderator=user),
+        status__in=['scheduled', 'in_progress']
+    ).distinct().select_related('section', 'section__team').order_by('scheduled_start')
+    
+    # Get assigned inline comments
+    assigned_comments = InlineComment.objects.filter(
+        assigned_to=user,
+        status='active'
+    ).select_related('section', 'author').order_by('-created_at')
+    
+    # Get user's teams and sections
+    user_teams = ProposalTeam.objects.filter(members=user)
+    
+    # Statistics
+    stats = {
+        'pending_reviews': assigned_reviews.count(),
+        'upcoming_sessions': review_sessions.filter(scheduled_start__gte=timezone.now()).count(),
+        'assigned_comments': assigned_comments.count(),
+        'overdue_reviews': assigned_reviews.filter(due_date__lt=timezone.now()).count(),
+    }
+    
+    context = {
+        'assigned_reviews': assigned_reviews[:10],  # Latest 10
+        'review_sessions': review_sessions[:10],  # Latest 10
+        'assigned_comments': assigned_comments[:10],  # Latest 10
+        'user_teams': user_teams,
+        'stats': stats,
+    }
+    
+    return render(request, 'collaboration/review_dashboard.html', context)

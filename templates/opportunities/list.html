@@ -6,28 +6,116 @@
 <style>
     .search-container { margin-bottom: 2rem; }
     .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem; }
-    .opportunity-card { background: white; border-left: 4px solid #3b82f6; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .opportunity-card { 
+        background: var(--card); 
+        color: var(--card-foreground);
+        border-left: 4px solid var(--primary); 
+        margin-bottom: 1rem; 
+        border-radius: var(--radius); 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid var(--border);
+    }
     .opportunity-header { padding: 1.5rem; }
-    .opportunity-meta { color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem; }
-    .opportunity-actions { padding: 0 1.5rem 1.5rem; border-top: 1px solid #f3f4f6; margin-top: 1rem; padding-top: 1rem; }
-    .status-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; }
-    .status-open { background: #d1fae5; color: #047857; }
-    .status-closing { background: #fed7aa; color: #ea580c; }
-    .status-closed { background: #fee2e2; color: #dc2626; }
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
-    .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
-    .stat-number { font-size: 2rem; font-weight: bold; color: #1e40af; }
-    .pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem; }
-    .page-link { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; background: white; text-decoration: none; color: #374151; }
-    .page-link:hover { background: #f3f4f6; }
-    .page-link.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    .opportunity-meta { color: var(--muted-foreground); font-size: 0.9rem; margin-top: 0.5rem; }
+    .opportunity-actions { padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem; }
     .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
     .htmx-request .htmx-indicator { opacity: 1; }
+    .stats-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+        gap: 1rem; 
+        margin-bottom: 2rem; 
+    }
+    .stat-card { 
+        background: var(--card); 
+        color: var(--card-foreground);
+        border: 1px solid var(--border);
+        padding: 1.5rem; 
+        border-radius: var(--radius); 
+        text-align: center; 
+    }
+    .stat-number { 
+        font-size: 2rem; 
+        font-weight: bold; 
+        color: var(--primary); 
+    }
+    .status-badge { 
+        padding: 0.25rem 0.75rem; 
+        border-radius: 9999px; 
+        font-size: 0.875rem; 
+        font-weight: 500; 
+    }
+    .status-open { 
+        background: var(--chart-5); 
+        color: var(--primary-foreground); 
+    }
+    .status-closing { 
+        background: var(--chart-4); 
+        color: var(--foreground); 
+    }
+    .status-closed { 
+        background: var(--destructive); 
+        color: var(--destructive-foreground); 
+    }
+    .pagination { 
+        display: flex; 
+        justify-content: center; 
+        gap: 0.5rem; 
+        margin-top: 2rem; 
+    }
+    .page-link { 
+        padding: 0.5rem 0.75rem; 
+        border: 1px solid var(--border); 
+        background: var(--card); 
+        color: var(--card-foreground);
+        text-decoration: none; 
+        border-radius: var(--radius);
+    }
+    .page-link:hover { 
+        background: var(--accent); 
+        color: var(--accent-foreground);
+    }
+    .page-link.active { 
+        background: var(--primary); 
+        color: var(--primary-foreground); 
+        border-color: var(--primary); 
+    }
+    
+    /* AGENT Army button styles */
+    .btn-agent-army {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border: none !important;
+        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3) !important;
+        transition: all 0.3s ease !important;
+        position: relative;
+        overflow: hidden;
+    }
+    .btn-agent-army:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4) !important;
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
+        text-decoration: none !important;
+        color: white !important;
+    }
+    .btn-agent-army:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    .btn-agent-army:hover:before {
+        left: 100%;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="opportunity-search">
+    {% csrf_token %}
     <div class="page-header">
         <h2>{{ page_title }}</h2>
         <div style="display: flex; gap: 1rem; align-items: center;">
@@ -47,8 +135,41 @@
         </div>
     </div>
 
+    <!-- Saved Searches -->
+    {% include 'opportunities/partials/saved_searches.html' %}
+
+    <!-- SAM.gov Advanced Search -->
+    <div id="sam-search-section" class="card mb-8">
+        <h3 class="mb-4 text-lg font-semibold">Search SAM.gov Directly</h3>
+        <form id="sam-search-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+                <label for="sam-search-term" class="form-label">Search Term</label>
+                <input type="text" id="sam-search-term" name="q" placeholder="Enter keywords..." class="form-input">
+            </div>
+            
+            <div>
+                <label for="sam-naics" class="form-label">NAICS Code</label>
+                <input type="text" id="sam-naics" name="naics" placeholder="e.g., 541511" class="form-input">
+            </div>
+            
+            <div>
+                <label for="sam-agency" class="form-label">Agency</label>
+                <input type="text" id="sam-agency" name="agency" placeholder="e.g., Defense" class="form-input">
+            </div>
+            
+            <div>
+                <button type="submit" class="btn btn-primary">
+                    <span class="htmx-indicator" id="sam-search-spinner">🔄</span>
+                    Search SAM.gov
+                </button>
+            </div>
+        </form>
+        
+        <div id="sam-search-results" style="margin-top: 1rem;"></div>
+    </div>
+
     <!-- Statistics Dashboard -->
-    <div class="stats-grid" 
+    <div id="stats-container" class="stats-grid" 
          hx-get="{% url 'opportunities:stats' %}"
          hx-trigger="load, every 30s"
          hx-target="this"
@@ -139,17 +260,464 @@
 </div>
 
 <script>
-// Auto-refresh stats periodically
-setInterval(function() {
-    htmx.trigger('#stats-container', 'refresh');
-}, 60000); // Refresh every minute
+// CSRF Token helper function
+function getCsrfToken() {
+    // Try multiple ways to get CSRF token
+    const metaToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const cookieToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const inputToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+    
+    return metaToken || cookieToken || inputToken || '';
+}
 
-// Show loading state for refresh button
-document.addEventListener('htmx:beforeRequest', function(event) {
-    if (event.detail.target.id === 'refresh-status') {
-        document.getElementById('refresh-status').innerHTML = 
-            '<span style="color: #3b82f6;">Fetching opportunities...</span>';
+// Auto-refresh stats periodically with error handling
+function safeRefreshStats() {
+    const statsContainer = document.getElementById('stats-container');
+    if (statsContainer && typeof htmx !== 'undefined') {
+        try {
+            htmx.trigger(statsContainer, 'refresh');
+        } catch (error) {
+            console.warn('Failed to trigger stats refresh:', error);
+        }
+    }
+}
+
+// Set up periodic refresh with safety check - only if elements exist
+document.addEventListener('DOMContentLoaded', function() {
+    const statsContainer = document.getElementById('stats-container');
+    if (statsContainer && typeof htmx !== 'undefined') {
+        setInterval(safeRefreshStats, 90000); // Refresh every 90 seconds
     }
 });
+
+// Enhanced HTMX event handling with safety checks
+document.addEventListener('htmx:beforeRequest', function(event) {
+    if (event.detail && event.detail.target && event.detail.target.id === 'refresh-status') {
+        const statusElement = document.getElementById('refresh-status');
+        if (statusElement) {
+            statusElement.innerHTML = '<span style="color: #3b82f6;">⟳ Fetching opportunities...</span>';
+        }
+    }
+});
+
+// Handle HTMX response errors gracefully
+document.addEventListener('htmx:responseError', function(event) {
+    console.warn('HTMX Response Error:', event.detail);
+    
+    if (event.detail && event.detail.target && event.detail.target.id === 'refresh-status') {
+        const statusElement = document.getElementById('refresh-status');
+        if (statusElement) {
+            statusElement.innerHTML = '<span style="color: #dc2626;">⚠ Request failed. Please try again.</span>';
+        }
+    }
+});
+
+// Handle HTMX network errors (when server is unreachable)
+document.addEventListener('htmx:sendError', function(event) {
+    console.warn('HTMX Network Error:', event.detail);
+    
+    if (event.detail && event.detail.target && event.detail.target.id === 'refresh-status') {
+        const statusElement = document.getElementById('refresh-status');
+        if (statusElement) {
+            statusElement.innerHTML = '<span style="color: #dc2626;">⚠ Network error. Please check your connection.</span>';
+        }
+    }
+});
+
+// Clear refresh status after successful request
+document.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail && event.detail.target && event.detail.target.id === 'refresh-status' && event.detail.successful) {
+        setTimeout(function() {
+            const statusElement = document.getElementById('refresh-status');
+            if (statusElement) {
+                statusElement.innerHTML = '';
+            }
+        }, 5000); // Clear after 5 seconds
+    }
+});
+
+// SAM.gov Advanced Search
+document.getElementById('sam-search-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const searchTerm = document.getElementById('sam-search-term').value;
+    const naicsCode = document.getElementById('sam-naics').value;
+    const agency = document.getElementById('sam-agency').value;
+    const resultsDiv = document.getElementById('sam-search-results');
+    
+    // Show loading
+    resultsDiv.innerHTML = '<div class="sam-status-message sam-status-loading">🔍 Searching SAM.gov...</div>';
+    
+    // Build query params
+    const params = new URLSearchParams();
+    if (searchTerm) params.append('q', searchTerm);
+    if (naicsCode) params.append('naics', naicsCode);
+    if (agency) params.append('agency', agency);
+    params.append('days', '30');
+    
+    // Store search parameters for pagination
+    currentSamSearch.params = {
+        q: searchTerm || '',
+        naics: naicsCode || '',
+        agency: agency || '',
+        days: '30'
+    };
+    currentSamSearch.page = 1;
+    
+    try {
+        const response = await fetch(`/opportunities/search-sam/?${params}`, {
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            let html = `
+                <div class="sam-status-message sam-status-success">
+                    ✅ Found ${data.count} opportunities (${data.total_available} total available)
+                    ${data.opportunities.length > 0 ? `
+                        <div class="sam-bulk-actions">
+                            <button onclick="selectAllOpportunities()" class="btn btn-outline btn-sm">
+                                Select All
+                            </button>
+                            <button onclick="bulkSaveSelectedOpportunities()" class="btn btn-primary btn-sm" id="bulk-save-btn" disabled>
+                                Save Selected to Database
+                            </button>
+                            <span id="selected-count" class="sam-selected-count">0 selected</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            if (data.opportunities.length > 0) {
+                html += '<div class="sam-results-container">';
+                data.opportunities.forEach(opp => {
+                    html += `
+                        <div class="sam-opportunity-card">
+                            <div class="sam-opportunity-layout">
+                                <input type="checkbox" class="sam-opportunity-checkbox opportunity-checkbox" 
+                                       data-notice-id="${opp.notice_id}" onchange="updateSelectedCount()">
+                                <div class="sam-opportunity-content">
+                                    <h4>
+                                        <a href="/opportunities/sam/${opp.notice_id}/" 
+                                           class="sam-opportunity-title">
+                                            ${opp.title}
+                                        </a>
+                                    </h4>
+                                    <div class="sam-opportunity-meta">
+                                        <strong>Notice ID:</strong> ${opp.notice_id} | 
+                                        <strong>Agency:</strong> ${opp.agency}<br>
+                                        <strong>NAICS:</strong> ${opp.naics} | 
+                                        <strong>Posted:</strong> ${opp.posted_date} | 
+                                        <strong>Response Date:</strong> ${opp.response_date}<br>
+                                        <strong>Type:</strong> ${opp.type} | 
+                                        <strong>Set-Aside:</strong> ${opp.set_aside}
+                                    </div>
+                                    <div class="sam-opportunity-actions">
+                                        <a href="/opportunities/sam/${opp.notice_id}/" 
+                                           class="btn btn-outline btn-sm">
+                                            View Details
+                                        </a>
+                                        <a href="${opp.link}" target="_blank" 
+                                           class="btn btn-outline btn-sm">
+                                            SAM.gov →
+                                        </a>
+                                        <button onclick="saveSingleOpportunity('${opp.notice_id}')" 
+                                                class="btn btn-primary btn-sm"
+                                                id="save-btn-${opp.notice_id}">
+                                            💾 Save
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                // Add pagination if available
+                if (data.pagination) {
+                    html += generateSamPagination(data.pagination);
+                }
+                
+                // Add bulk save status area
+                html += '<div id="bulk-save-status"></div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+        } else {
+            resultsDiv.innerHTML = `<div class="sam-status-message sam-status-error">❌ ${data.message || 'Search failed'}</div>`;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="sam-status-message sam-status-error">❌ Network error: ${error.message}</div>`;
+    }
+});
+
+// Store search state for pagination
+let currentSamSearch = {
+    params: {},
+    page: 1
+};
+
+// Generate pagination HTML
+function generateSamPagination(pagination) {
+    if (!pagination || pagination.total_pages <= 1) {
+        return '';
+    }
+    
+    return `
+        <div class="sam-pagination">
+            <button class="sam-page-btn" 
+                    onclick="loadSamPage(${pagination.current_page - 1})"
+                    ${!pagination.has_previous ? 'disabled' : ''}>
+                ← Previous
+            </button>
+            <span class="sam-page-info">
+                Page ${pagination.current_page} of ${pagination.total_pages}
+                (${pagination.total_records} results)
+            </span>
+            <button class="sam-page-btn" 
+                    onclick="loadSamPage(${pagination.current_page + 1})"
+                    ${!pagination.has_next ? 'disabled' : ''}>
+                Next →
+            </button>
+        </div>
+    `;
+}
+
+// Load specific page of SAM results
+async function loadSamPage(pageNumber) {
+    const resultsDiv = document.getElementById('sam-search-results');
+    
+    // Show loading state
+    resultsDiv.innerHTML = '<div class="sam-status-message sam-status-loading">🔍 Loading page ' + pageNumber + '...</div>';
+    
+    // Build query params with page number
+    const params = new URLSearchParams(currentSamSearch.params);
+    params.set('page', pageNumber);
+    
+    try {
+        const response = await fetch(`/opportunities/search-sam/?${params}`, {
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Update current page
+            currentSamSearch.page = pageNumber;
+            
+            // Generate results HTML
+            let html = `
+                <div class="sam-status-message sam-status-success">
+                    ✅ Found ${data.count} opportunities (${data.total_available} total available)
+                    ${data.opportunities.length > 0 ? `
+                        <div class="sam-bulk-actions">
+                            <button onclick="selectAllOpportunities()" class="btn btn-outline btn-sm">
+                                Select All
+                            </button>
+                            <button onclick="bulkSaveSelectedOpportunities()" class="btn btn-primary btn-sm" id="bulk-save-btn" disabled>
+                                Save Selected to Database
+                            </button>
+                            <span id="selected-count" class="sam-selected-count">0 selected</span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            if (data.opportunities.length > 0) {
+                html += '<div class="sam-results-container">';
+                data.opportunities.forEach(opp => {
+                    html += `
+                        <div class="sam-opportunity-card">
+                            <div class="sam-opportunity-layout">
+                                <input type="checkbox" class="sam-opportunity-checkbox opportunity-checkbox" 
+                                       data-notice-id="${opp.notice_id}" onchange="updateSelectedCount()">
+                                <div class="sam-opportunity-content">
+                                    <h4>
+                                        <a href="/opportunities/sam/${opp.notice_id}/" 
+                                           class="sam-opportunity-title">
+                                            ${opp.title}
+                                        </a>
+                                    </h4>
+                                    <div class="sam-opportunity-meta">
+                                        <strong>Notice ID:</strong> ${opp.notice_id} | 
+                                        <strong>Agency:</strong> ${opp.agency}<br>
+                                        <strong>NAICS:</strong> ${opp.naics} | 
+                                        <strong>Posted:</strong> ${opp.posted_date} | 
+                                        <strong>Response Date:</strong> ${opp.response_date}<br>
+                                        <strong>Type:</strong> ${opp.type} | 
+                                        <strong>Set-Aside:</strong> ${opp.set_aside}
+                                    </div>
+                                    <div class="sam-opportunity-actions">
+                                        <a href="/opportunities/sam/${opp.notice_id}/" 
+                                           class="btn btn-outline btn-sm">
+                                            View Details
+                                        </a>
+                                        <a href="${opp.link}" target="_blank" 
+                                           class="btn btn-outline btn-sm">
+                                            SAM.gov →
+                                        </a>
+                                        <button onclick="saveSingleOpportunity('${opp.notice_id}')" 
+                                                class="btn btn-primary btn-sm"
+                                                id="save-btn-${opp.notice_id}">
+                                            💾 Save
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                // Add pagination
+                if (data.pagination) {
+                    html += generateSamPagination(data.pagination);
+                }
+                
+                html += '<div id="bulk-save-status"></div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+        } else {
+            resultsDiv.innerHTML = `<div class="sam-status-message sam-status-error">❌ ${data.message || 'Page load failed'}</div>`;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="sam-status-message sam-status-error">❌ Network error: ${error.message}</div>`;
+    }
+}
+
+// Bulk save functionality
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.opportunity-checkbox:checked');
+    const count = checkboxes.length;
+    const countSpan = document.getElementById('selected-count');
+    const bulkSaveBtn = document.getElementById('bulk-save-btn');
+    
+    if (countSpan) {
+        countSpan.textContent = `${count} selected`;
+    }
+    
+    if (bulkSaveBtn) {
+        bulkSaveBtn.disabled = count === 0;
+    }
+}
+
+function selectAllOpportunities() {
+    const checkboxes = document.querySelectorAll('.opportunity-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+    });
+    
+    updateSelectedCount();
+}
+
+async function bulkSaveSelectedOpportunities() {
+    const checkboxes = document.querySelectorAll('.opportunity-checkbox:checked');
+    const noticeIds = Array.from(checkboxes).map(cb => cb.dataset.noticeId);
+    
+    if (noticeIds.length === 0) {
+        return;
+    }
+    
+    const bulkSaveBtn = document.getElementById('bulk-save-btn');
+    const statusDiv = document.getElementById('bulk-save-status');
+    
+    // Disable button and show loading
+    bulkSaveBtn.disabled = true;
+    bulkSaveBtn.innerHTML = '⏳ Saving...';
+    statusDiv.innerHTML = `<div class="alert alert-info">Saving ${noticeIds.length} opportunities to database...</div>`;
+    
+    try {
+        const response = await fetch('/opportunities/sam/bulk-save/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ notice_ids: noticeIds })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ ${data.message}</div>`;
+            
+            // Uncheck all checkboxes
+            checkboxes.forEach(cb => cb.checked = false);
+            updateSelectedCount();
+            
+        } else if (data.status === 'info') {
+            statusDiv.innerHTML = `<div class="alert alert-info">ℹ ${data.message}</div>`;
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-error">❌ ${data.message}</div>`;
+        }
+        
+        // Re-enable button
+        bulkSaveBtn.disabled = false;
+        bulkSaveBtn.innerHTML = 'Save Selected to Database';
+        
+    } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-error">❌ Network error: ${error.message}</div>`;
+        bulkSaveBtn.disabled = false;
+        bulkSaveBtn.innerHTML = 'Save Selected to Database';
+    }
+}
+
+async function saveSingleOpportunity(noticeId) {
+    const saveBtn = document.getElementById(`save-btn-${noticeId}`);
+    
+    // Disable button and show loading
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⏳ Saving...';
+    
+    try {
+        const response = await fetch(`/opportunities/sam/${noticeId}/save/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            saveBtn.innerHTML = '✓ Saved';
+            saveBtn.style.backgroundColor = '#10b981';
+            saveBtn.style.borderColor = '#10b981';
+        } else if (data.status === 'info') {
+            saveBtn.innerHTML = '✓ Already Saved';
+            saveBtn.style.backgroundColor = '#6b7280';
+            saveBtn.style.borderColor = '#6b7280';
+        } else {
+            saveBtn.innerHTML = '❌ Failed';
+            saveBtn.style.backgroundColor = '#dc2626';
+            saveBtn.style.borderColor = '#dc2626';
+            setTimeout(() => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '💾 Save';
+                saveBtn.style.backgroundColor = '';
+                saveBtn.style.borderColor = '';
+            }, 3000);
+        }
+    } catch (error) {
+        saveBtn.innerHTML = '❌ Error';
+        saveBtn.style.backgroundColor = '#dc2626';
+        saveBtn.style.borderColor = '#dc2626';
+        setTimeout(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '💾 Save';
+            saveBtn.style.backgroundColor = '';
+            saveBtn.style.borderColor = '';
+        }, 3000);
+    }
+}
 </script>
 {% endblock %}

@@ -1,18 +1,46 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="darkMode ? 'dark' : ''">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BLACK CORAL{% endblock %}</title>
     
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
+    
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+    
+    <!-- CSRF Token for HTMX -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script>
+        // Configure HTMX to use CSRF token for all requests
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.addEventListener('htmx:configRequest', function(evt) {
+                evt.detail.headers['X-CSRFToken'] = document.querySelector('meta[name="csrf-token"]').content;
+            });
+        });
+    </script>
     
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- BLACK CORAL Styles -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    
+    <!-- Theme Management -->
+    <script src="{% static 'js/theme.js' %}"></script>
+    
+    <!-- Dark mode initialization -->
+    <script>
+        // Initialize dark mode before page renders to prevent flash
+        if (localStorage.getItem('darkMode') === 'true' || 
+            (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
     
     <!-- Additional Styling -->
     <style>
@@ -22,26 +50,26 @@
     
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="bg-background text-foreground">
     {% if request.resolver_match.url_name != 'landing' %}
     <header class="header">
         <div class="container">
             <nav class="nav">
                 <div>
-                    <a href="{% if user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" style="color: white; text-decoration: none;">
-                        <h1 style="margin: 0;">BLACK CORAL</h1>
+                    <a href="{% if user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" class="text-foreground hover:text-primary" style="text-decoration: none;">
+                        <h1 style="margin: 0;" class="text-xl font-bold">BLACK CORAL</h1>
                     </a>
-                    <span style="font-size: 0.8em; opacity: 0.8;">Government Contracting Workflow System</span>
+                    <span class="text-muted-foreground" style="font-size: 0.8em;">Government Contracting Workflow System</span>
                 </div>
                 {% if user.is_authenticated %}
-                <div>
-                    <span>{{ user.first_name|default:user.username }} ({{ user.get_role_display }})</span>
-                    <a href="{% url 'authentication:profile' %}">Profile</a>
-                    <a href="{% url 'authentication:logout' %}">Logout</a>
+                <div class="flex items-center gap-4">
+                    <span class="text-foreground">{{ user.first_name|default:user.username }} ({{ user.get_role_display }})</span>
+                    <a href="{% url 'authentication:profile' %}" class="nav-link">Profile</a>
+                    <a href="{% url 'authentication:logout' %}" class="nav-link">Logout</a>
                 </div>
                 {% else %}
-                <div>
-                    <a href="{% url 'authentication:login' %}">Login</a>
+                <div class="flex items-center gap-4">
+                    <a href="{% url 'authentication:login' %}" class="nav-link">Login</a>
                 </div>
                 {% endif %}
             </nav>
@@ -66,11 +94,21 @@
     </main>
 
     {% if request.resolver_match.url_name != 'landing' %}
-    <footer style="background: #f3f4f6; padding: 1rem 0; margin-top: 2rem; text-align: center; color: #6b7280;">
+    <footer class="bg-muted text-muted-foreground" style="padding: 1rem 0; margin-top: 2rem; text-align: center;">
         <div class="container">
             <p>&copy; 2024 BLACK CORAL - Internal Government Contracting System</p>
         </div>
     </footer>
     {% endif %}
+    
+    <!-- Dark Mode Toggle Button -->
+    <button 
+        @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)"
+        class="dark-mode-toggle"
+        title="Toggle dark mode"
+    >
+        <span x-show="!darkMode">🌙</span>
+        <span x-show="darkMode">☀️</span>
+    </button>
 </body>
 </html>

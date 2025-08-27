@@ -1,46 +1,141 @@
 # Core Django and Database
-Django==5.2.*
-psycopg2-binary==2.9.*
-django-environ==0.11.*
+Django>=5.2.0
+psycopg2-binary>=2.9.0
+django-environ>=0.11.0
+
+# REST Framework and API
+djangorestframework>=3.15.0
+djangorestframework-simplejwt>=5.3.0
+django-filter>=23.5
+drf-spectacular>=0.27.0
+django-cors-headers>=4.3.0
 
 # Frontend Enhancement
-django-htmx==1.17.*
+django-htmx>=1.17.0
 
 # API and External Integrations
-requests==2.31.*
-requests-cache==1.1.*
-celery==5.3.*
-redis==5.0.*
+requests>=2.31.0
+requests-cache>=1.1.0
+celery>=5.3.0
+django-celery-beat>=2.5.0
+django-celery-results>=2.5.0
+redis>=5.0.0
+django-redis>=5.4.0
+
+# Real-time Features
+channels>=4.0.0
+channels-redis>=4.1.0
+django-channels-presence>=1.0.0
+websockets>=12.0
 
 # Document Processing
-PyMuPDF==1.23.*
-python-docx==1.1.*
-pytesseract==0.3.*
-Pillow==10.1.*
-pandas==2.1.*
-openpyxl==3.1.*
-beautifulsoup4==4.12.*
+PyMuPDF>=1.26.0
+pymupdf4llm>=0.0.26
+python-docx>=1.1.0
+pytesseract>=0.3.0
+Pillow>=10.1.0
+pandas>=2.1.0
+openpyxl>=3.1.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
 
 # AI Integration
-anthropic==0.7.*
-google-generativeai==0.3.*
+anthropic>=0.7.0
+google-generativeai>=0.3.0
+openai>=1.6.0
+langextract>=0.1.0
+langchain>=0.1.0
+langchain-anthropic>=0.1.0
+langchain-google-genai>=0.1.0
 
-# Development and Testing
-pytest==7.4.*
-pytest-django==4.7.*
-pytest-celery==0.0.*
-black==23.9.*
-flake8==6.1.*
-coverage==7.3.*
+# Data Processing and Analysis
+numpy>=1.24.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+nltk>=3.8.0
+textblob>=0.17.0
 
-# Production
-gunicorn==21.2.*
-whitenoise==6.6.*
-django-cors-headers==4.3.*
+# Validation and Serialization
+marshmallow>=3.20.0
+pydantic>=2.5.0
+jsonschema>=4.19.0
+
+# File and Media Handling
+django-storages>=1.14.0
+boto3>=1.33.0  # For AWS S3
+PyPDF2>=3.0.0
+docx2txt>=0.8
+
+# Rate Limiting and Throttling
+django-ratelimit>=4.1.0
+django-axes>=6.1.0
+
+# Monitoring and Logging
+django-extensions>=3.2.0
+django-debug-toolbar>=4.2.0
+sentry-sdk[django]>=1.38.0
+django-silk>=5.0.0
 
 # Security
-django-csp==3.8.*
-django-ratelimit==4.1.*
+django-csp>=3.8.0
+cryptography>=41.0.0
+django-oauth-toolkit>=1.7.0
+django-guardian>=2.4.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-django>=4.7.0
+pytest-celery>=0.0.0
+pytest-asyncio>=0.21.0
+factory-boy>=3.3.0
+faker>=20.1.0
+black>=23.9.0
+flake8>=6.1.0
+isort>=5.12.0
+mypy>=1.7.0
+django-stubs>=4.2.0
+coverage>=7.3.0
+responses>=0.24.0
+
+# Production
+gunicorn>=21.2.0
+whitenoise>=6.6.0
+daphne>=4.0.0  # ASGI server for channels
+uvicorn[standard]>=0.24.0
 
 # Task monitoring
-flower==2.0.*
+flower>=2.0.0
+django-prometheus>=2.3.0
+
+# Database
+django-migration-linter>=5.0.0
+django-model-utils>=4.3.0
+
+# Email and Notifications
+django-anymail[mailgun]>=10.2.0
+django-activity-stream>=2.0.0
+
+# Caching and Performance
+django-cachalot>=2.6.0
+django-compressor>=4.4
+
+# Geographic and Location
+geopy>=2.4.0
+django-leaflet>=0.29.0
+
+# Advanced Document Processing and AI
+unstructured>=0.10.0
+pdfplumber>=0.9.0
+python-magic>=0.4.27
+sentence-transformers>=2.2.2
+transformers>=4.30.0
+chromadb>=0.4.15
+spacy>=3.6.0
+pytesseract>=0.3.10
+
+# Optional AI libraries (install manually if needed)
+# torch>=2.0.0  # Uncomment if you need PyTorch
+# faiss-cpu>=1.7.4  # Uncomment if you need FAISS
+# easyocr>=1.7.0  # Uncomment if you need EasyOCR
+# layoutparser>=0.3.4  # Uncomment if you need LayoutParser
+# detectron2>=0.6  # Complex installation - see installation notes below

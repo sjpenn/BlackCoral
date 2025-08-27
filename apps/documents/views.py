@@ -13,11 +13,13 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.collaboration.models import ProposalTeam, ProposalSection
+from apps.opportunities.models import Opportunity
 from .models import (
     DocumentTemplate, AssemblyConfiguration, DocumentSection,
-    DocumentVariable, ExportFormat, ExportJob
+    DocumentVariable, ExportFormat, ExportJob, DocumentUpload
 )
 from .assembly_services import DocumentAssemblyService, DocumentAssemblyEngine
+from .api_views_simple import list_documents as api_document_list
 
 
 @login_required
@@ -369,3 +371,42 @@ def jobs_list(request):
     }
     
     return render(request, 'documents/jobs_list.html', context)
+
+
+@login_required
+def upload_view(request):
+    """Document upload interface"""
+    # Get opportunities for the dropdown
+    opportunities = Opportunity.objects.filter(
+        # Only show active opportunities that user can access
+        # Add more filters based on user permissions if needed
+    ).order_by('-created_at')[:50]  # Limit to recent 50 opportunities
+    
+    context = {
+        'opportunities': opportunities,
+        'page_title': 'Upload Documents',
+    }
+    
+    return render(request, 'documents/upload.html', context)
+
+
+@login_required
+def upload_status_view(request):
+    """Upload status dashboard"""
+    # Get user's recent uploads
+    recent_uploads = DocumentUpload.objects.filter(
+        user=request.user
+    ).order_by('-created_at')[:20]  # Limit to recent 20 uploads for the initial view
+    
+    # Get opportunities for filtering
+    opportunities = Opportunity.objects.filter(
+        # Add opportunity filtering based on user permissions
+    ).order_by('-created_at')[:50]
+    
+    context = {
+        'recent_uploads': recent_uploads,
+        'opportunities': opportunities,
+        'page_title': 'Upload Status',
+    }
+    
+    return render(request, 'documents/upload_status.html', context)

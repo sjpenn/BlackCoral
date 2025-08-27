@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 
 def landing_page(request):
@@ -34,3 +36,33 @@ def health_check(request):
     Health check endpoint for monitoring.
     """
     return JsonResponse({'status': 'healthy', 'service': 'BLACK CORAL'})
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_dashboard_stats(request):
+    """
+    Simple dashboard stats API endpoint for frontend
+    """
+    return JsonResponse({
+        'opportunities': {'total': 0, 'open': 0, 'closing_soon': 0, 'analyzed': 0},
+        'teams': {'active_teams': 0, 'my_teams': 0, 'overdue_tasks': 0},
+        'compliance': {'pending_reviews': 0, 'approved': 0},
+        'ai_usage': {'requests_today': 0, 'total_tokens': 0},
+        'user_activity': {'active_users': 1},
+        'recent_activity': []
+    })
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_documents_list(request):
+    """
+    Simple documents list API endpoint for frontend
+    """
+    return JsonResponse({
+        'results': [],
+        'count': 0,
+        'next': None,
+        'previous': None
+    })

@@ -63,4 +63,17 @@ urlpatterns = [
     
     # Document Assembly Integration
     path('<int:team_id>/documents/', views.team_documents, name='team_documents'),
+    
+    # Inline Comments and Reviews
+    path('sections/<int:section_id>/comments/', views.section_comments, name='section_comments'),
+    path('sections/<int:section_id>/comments/add/', views.add_inline_comment, name='add_inline_comment'),
+    path('comments/<int:comment_id>/reply/', views.reply_to_comment, name='reply_to_comment'),
+    path('comments/<int:comment_id>/resolve/', views.resolve_comment, name='resolve_comment'),
+    
+    # Review Sessions
+    path('sections/<int:section_id>/review-sessions/create/', views.create_review_session, name='create_review_session'),
+    path('review-sessions/<int:session_id>/', views.review_session_detail, name='review_session_detail'),
+    
+    # Review Dashboard
+    path('reviews/dashboard/', views.review_dashboard, name='review_dashboard'),
 ]

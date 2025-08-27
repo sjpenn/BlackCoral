@@ -2,169 +2,23 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block extra_head %}
-<style>
-    body { margin: 0; }
-    .hero { 
-        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-        color: white; 
-        padding: 4rem 0; 
-        text-align: center;
-    }
-    .hero h1 { 
-        font-size: 3.5rem; 
-        margin-bottom: 1rem; 
-        font-weight: 700;
-    }
-    .hero-subtitle { 
-        font-size: 1.5rem; 
-        opacity: 0.9; 
-        margin-bottom: 2rem;
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .cta-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-top: 2rem;
-    }
-    .btn-hero {
-        padding: 1rem 2rem;
-        font-size: 1.1rem;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        display: inline-block;
-    }
-    .btn-hero-primary {
-        background: white;
-        color: #1e40af;
-        border: 2px solid white;
-    }
-    .btn-hero-primary:hover {
-        background: transparent;
-        color: white;
-        transform: translateY(-2px);
-    }
-    .btn-hero-secondary {
-        background: transparent;
-        color: white;
-        border: 2px solid white;
-    }
-    .btn-hero-secondary:hover {
-        background: white;
-        color: #1e40af;
-        transform: translateY(-2px);
-    }
-    .features {
-        padding: 4rem 0;
-        background: #f8fafc;
-    }
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem;
-        margin-top: 3rem;
-    }
-    .feature-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        text-align: center;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        cursor: pointer;
-    }
-    .feature-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-    }
-    .feature-icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-    }
-    .feature-card h3 {
-        color: #1e40af;
-        margin-bottom: 1rem;
-        font-size: 1.5rem;
-    }
-    .stats {
-        background: #1e40af;
-        color: white;
-        padding: 3rem 0;
-        text-align: center;
-    }
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 2rem;
-        margin-top: 2rem;
-    }
-    .stat-item {
-        padding: 1rem;
-    }
-    .stat-number {
-        font-size: 2.5rem;
-        font-weight: 700;
-        display: block;
-        margin-bottom: 0.5rem;
-    }
-    .workflow {
-        padding: 4rem 0;
-        background: white;
-    }
-    .workflow-steps {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 2rem;
-        margin-top: 3rem;
-    }
-    .workflow-step {
-        text-align: center;
-        position: relative;
-    }
-    .step-number {
-        background: #3b82f6;
-        color: white;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin: 0 auto 1rem;
-    }
-    @media (max-width: 768px) {
-        .hero h1 { font-size: 2.5rem; }
-        .hero-subtitle { font-size: 1.2rem; }
-        .cta-buttons { flex-direction: column; align-items: center; }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <!-- Hero Section -->
-<section class="hero">
+<section class="hero py-16 text-center">
     <div class="container">
         <h1>BLACK CORAL</h1>
         <div class="hero-subtitle">
             AI-Powered Government Contracting Workflow System
         </div>
-        <p style="font-size: 1.1rem; opacity: 0.8; margin-bottom: 2rem;">
+        <p class="text-lg opacity-80 mb-8">
             Streamline and accelerate your U.S. government contracting process with intelligent automation, 
             real-time compliance monitoring, and AI-driven proposal generation.
         </p>
-        <div class="cta-buttons">
-            <a href="{% url 'authentication:login' %}" class="btn-hero btn-hero-primary">
+        <div class="cta-buttons flex gap-4 justify-center flex-wrap mt-8">
+            <a href="{% url 'authentication:login' %}" class="btn-hero btn-hero-primary px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-300 inline-block">
                 Access Platform
             </a>
-            <a href="#features" class="btn-hero btn-hero-secondary" 
+            <a href="#features" class="btn-hero btn-hero-secondary px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-300 inline-block" 
                hx-get="#features" hx-trigger="click" hx-swap="none">
                 Learn More
             </a>
@@ -173,65 +27,61 @@
 </section>
 
 <!-- Features Section -->
-<section id="features" class="features">
+<section id="features" class="py-16 bg-muted">
     <div class="container">
-        <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem; color: #1e40af;">
+        <h2 class="text-center text-4xl font-bold mb-4 text-primary">
             Transform Your Contracting Workflow
         </h2>
-        <p style="text-align: center; font-size: 1.2rem; color: #6b7280; max-width: 600px; margin: 0 auto;">
+        <p class="text-center text-lg text-muted-foreground max-w-2xl mx-auto">
             Replace sequential processes with dynamic, concurrent agent-driven workflows powered by AI.
         </p>
         
-        <div class="features-grid">
-            <div class="feature-card" 
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+            <div class="feature-card cursor-pointer" 
                  hx-get="{% url 'opportunities:list' %}" 
                  hx-trigger="click" 
                  hx-target="body" 
                  hx-swap="outerHTML">
-                <div class="feature-icon">🔍</div>
-                <h3>Opportunity Discovery</h3>
+                <div class="text-6xl mb-4">🔍</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Opportunity Discovery</h3>
                 <p>Real-time searches across sam.gov, USASpending.gov, and GAO APIs with intelligent filtering by NAICS codes, agencies, and capabilities.</p>
             </div>
             
-            <div class="feature-card"
-                 hx-get="{% url 'documents:list' %}" 
-                 hx-trigger="click" 
-                 hx-target="body" 
-                 hx-swap="outerHTML">
-                <div class="feature-icon">📄</div>
-                <h3>Document Processing</h3>
-                <p>Automated SOW/PWS extraction with support for PDF, Word, ZIP, HTML, XLS, and image formats including OCR capabilities.</p>
+            <div class="feature-card">
+                <div class="text-6xl mb-4">📄</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Document Processing</h3>
+                <p>Automated SOW/PWS extraction with support for PDF, Word, ZIP, HTML, XLS, and image formats including OCR capabilities. (Coming Soon)</p>
             </div>
             
-            <div class="feature-card"
+            <div class="feature-card cursor-pointer"
                  hx-get="{% url 'ai_integration:dashboard' %}" 
                  hx-trigger="click" 
                  hx-target="body" 
                  hx-swap="outerHTML">
-                <div class="feature-icon">🤖</div>
-                <h3>AI-Powered Analysis</h3>
+                <div class="text-6xl mb-4">🤖</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">AI-Powered Analysis</h3>
                 <p>Claude Code and Gemini integration for automated summarization, requirement matching, and intelligent content generation.</p>
             </div>
             
-            <div class="feature-card"
+            <div class="feature-card cursor-pointer"
                  hx-get="{% url 'compliance:dashboard' %}" 
                  hx-trigger="click" 
                  hx-target="body" 
                  hx-swap="outerHTML">
-                <div class="feature-icon">✅</div>
-                <h3>Compliance Monitoring</h3>
+                <div class="text-6xl mb-4">✅</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Compliance Monitoring</h3>
                 <p>Real-time FAR and agency compliance checking with continuous monitoring and automated alert systems.</p>
             </div>
             
             <div class="feature-card">
-                <div class="feature-icon">👥</div>
-                <h3>Role-Based Workflow</h3>
+                <div class="text-6xl mb-4">👥</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Role-Based Workflow</h3>
                 <p>Six specialized roles with tailored dashboards: Admin, Researcher, Reviewer, Compliance Monitor, QA, and Submission Agent.</p>
             </div>
             
             <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>Real-Time Collaboration</h3>
+                <div class="text-6xl mb-4">⚡</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Real-Time Collaboration</h3>
                 <p>HTMX-powered interface for instant updates, parallel task execution, and seamless team coordination.</p>
             </div>
         </div>
@@ -239,25 +89,25 @@
 </section>
 
 <!-- Stats Section -->
-<section class="stats">
+<section class="stats-section py-12 text-center">
     <div class="container">
-        <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Platform Impact</h2>
-        <p style="font-size: 1.1rem; opacity: 0.9;">Measurable improvements in government contracting efficiency</p>
+        <h2 class="text-4xl font-bold mb-4">Platform Impact</h2>
+        <p class="text-lg opacity-90">Measurable improvements in government contracting efficiency</p>
         
-        <div class="stats-grid">
-            <div class="stat-item">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-8">
+            <div class="stat-card">
                 <span class="stat-number">50%</span>
                 <span>Faster Proposal Preparation</span>
             </div>
-            <div class="stat-item">
+            <div class="stat-card">
                 <span class="stat-number">90%</span>
                 <span>Compliance Accuracy Rate</span>
             </div>
-            <div class="stat-item">
+            <div class="stat-card">
                 <span class="stat-number">75%</span>
                 <span>Time Savings on Research</span>
             </div>
-            <div class="stat-item">
+            <div class="stat-card">
                 <span class="stat-number">100%</span>
                 <span>Regulatory Compliance</span>
             </div>
@@ -266,34 +116,34 @@
 </section>
 
 <!-- Workflow Section -->
-<section class="workflow">
+<section class="py-16 bg-background">
     <div class="container">
-        <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem; color: #1e40af;">
+        <h2 class="text-center text-4xl font-bold mb-4 text-primary">
             Streamlined Process
         </h2>
-        <p style="text-align: center; font-size: 1.2rem; color: #6b7280; max-width: 600px; margin: 0 auto;">
+        <p class="text-center text-lg text-muted-foreground max-w-2xl mx-auto">
             From opportunity discovery to proposal submission in four intelligent steps.
         </p>
         
-        <div class="workflow-steps">
-            <div class="workflow-step">
-                <div class="step-number">1</div>
-                <h3 style="color: #1e40af; margin-bottom: 1rem;">Discover</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
+            <div class="text-center">
+                <div class="feature-icon w-16 h-16 mx-auto mb-4 flex items-center justify-center text-2xl font-bold">1</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Discover</h3>
                 <p>AI agents continuously monitor government APIs for relevant opportunities matching your criteria.</p>
             </div>
-            <div class="workflow-step">
-                <div class="step-number">2</div>
-                <h3 style="color: #1e40af; margin-bottom: 1rem;">Analyze</h3>
+            <div class="text-center">
+                <div class="feature-icon w-16 h-16 mx-auto mb-4 flex items-center justify-center text-2xl font-bold">2</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Analyze</h3>
                 <p>Automated document processing and AI-powered analysis extract key requirements and generate summaries.</p>
             </div>
-            <div class="workflow-step">
-                <div class="step-number">3</div>
-                <h3 style="color: #1e40af; margin-bottom: 1rem;">Collaborate</h3>
+            <div class="text-center">
+                <div class="feature-icon w-16 h-16 mx-auto mb-4 flex items-center justify-center text-2xl font-bold">3</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Collaborate</h3>
                 <p>Role-based workflows enable parallel task execution with real-time compliance and quality monitoring.</p>
             </div>
-            <div class="workflow-step">
-                <div class="step-number">4</div>
-                <h3 style="color: #1e40af; margin-bottom: 1rem;">Submit</h3>
+            <div class="text-center">
+                <div class="feature-icon w-16 h-16 mx-auto mb-4 flex items-center justify-center text-2xl font-bold">4</div>
+                <h3 class="text-primary mb-4 text-xl font-semibold">Submit</h3>
                 <p>Automated proposal assembly with final compliance scans and streamlined submission processes.</p>
             </div>
         </div>
@@ -301,19 +151,19 @@
 </section>
 
 <!-- CTA Section -->
-<section style="background: #f8fafc; padding: 4rem 0; text-align: center;">
+<section class="bg-muted py-16 text-center">
     <div class="container">
-        <h2 style="font-size: 2.5rem; margin-bottom: 1rem; color: #1e40af;">
+        <h2 class="text-4xl font-bold mb-4 text-primary">
             Ready to Transform Your Workflow?
         </h2>
-        <p style="font-size: 1.2rem; color: #6b7280; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+        <p class="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
             Join the next generation of government contracting with AI-powered automation and intelligent workflows.
         </p>
-        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-            <a href="{% url 'authentication:login' %}" class="btn btn-primary" style="padding: 1rem 2rem; font-size: 1.1rem;">
+        <div class="flex gap-4 justify-center flex-wrap">
+            <a href="{% url 'authentication:login' %}" class="btn btn-primary px-8 py-4 text-lg">
                 Get Started
             </a>
-            <a href="{% url 'opportunities:list' %}" class="btn" style="padding: 1rem 2rem; font-size: 1.1rem; background: transparent; border: 2px solid #3b82f6; color: #3b82f6;">
+            <a href="{% url 'opportunities:list' %}" class="btn btn-secondary px-8 py-4 text-lg">
                 Explore Opportunities
             </a>
         </div>

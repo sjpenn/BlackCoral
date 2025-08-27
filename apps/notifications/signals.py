@@ -300,9 +300,9 @@ def time_log_notification(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Opportunity)
 def opportunity_deadline_notification(sender, instance, created, **kwargs):
     """Notify teams about upcoming opportunity deadlines"""
-    if not created and instance.response_deadline:
+    if not created and instance.response_date:
         # Check if deadline is approaching (within 7 days)
-        days_until_deadline = (instance.response_deadline.date() - timezone.now().date()).days
+        days_until_deadline = (instance.response_date.date() - timezone.now().date()).days
         
         if days_until_deadline <= 7 and days_until_deadline > 0:
             try:
